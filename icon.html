@@ -1,0 +1,112 @@
+<!doctype html>
+<!-- Dev tool: renders the app icon at the current window size (square).
+     Screenshot with headless Chrome at 512/192/180 to produce the PNG icons. -->
+<meta charset="utf-8">
+<style>html,body{margin:0;padding:0;height:100%;background:#e9c98e;display:flex;align-items:center;justify-content:center}canvas{display:block}</style>
+<canvas id="c"></canvas>
+<script>
+const c = document.getElementById('c');
+const S = Math.min(innerWidth, innerHeight);
+c.width = S; c.height = S;
+const x = c.getContext('2d');
+x.scale(S / 512, S / 512);
+const TAU = Math.PI * 2;
+function E(cx, cy, rx, ry, fill, rot) {
+  x.save(); x.translate(cx, cy); if (rot) x.rotate(rot);
+  x.beginPath(); x.ellipse(0, 0, rx, ry, 0, 0, TAU);
+  x.fillStyle = fill; x.fill(); x.restore();
+}
+function EO(cx, cy, rx, ry, fill, rot) {
+  E(cx, cy, rx, ry, fill, rot);
+  x.save(); x.translate(cx, cy); if (rot) x.rotate(rot);
+  x.beginPath(); x.ellipse(0, 0, rx, ry, 0, 0, TAU);
+  x.strokeStyle = 'rgba(80,54,36,.45)'; x.lineWidth = 2.6; x.stroke();
+  x.restore();
+}
+function heart(cx, cy, s, col) {
+  x.fillStyle = col;
+  x.beginPath();
+  x.moveTo(cx, cy + s * 0.9);
+  x.bezierCurveTo(cx - s * 1.5, cy - s * 0.15, cx - s * 0.75, cy - s * 1.15, cx, cy - s * 0.35);
+  x.bezierCurveTo(cx + s * 0.75, cy - s * 1.15, cx + s * 1.5, cy - s * 0.15, cx, cy + s * 0.9);
+  x.closePath(); x.fill();
+}
+
+// warm watercolour page, full-bleed (maskable-safe)
+const bg = x.createRadialGradient(256, 190, 40, 256, 290, 435);
+bg.addColorStop(0, '#fdf2d6'); bg.addColorStop(1, '#e9c98e');
+x.fillStyle = bg; x.fillRect(0, 0, 512, 512);
+for (let i = 0; i < 320; i++) {
+  x.fillStyle = 'rgba(118,90,60,' + (Math.random() * 0.07) + ')';
+  x.fillRect(Math.random() * 512, Math.random() * 512, 2, 1.4);
+}
+x.strokeStyle = 'rgba(110,80,55,.3)'; x.lineWidth = 6;
+x.beginPath(); x.arc(256, 256, 226, 0, TAU); x.stroke();
+x.strokeStyle = 'rgba(110,80,55,.16)'; x.lineWidth = 2.5;
+x.beginPath(); x.arc(256, 256, 214, 0, TAU); x.stroke();
+
+// little hearts
+heart(118, 130, 16, 'rgba(217,72,63,.75)');
+heart(394, 118, 12, 'rgba(217,72,63,.55)');
+heart(404, 372, 14, 'rgba(217,72,63,.6)');
+
+// ---- Doggie's portrait (geometry borrowed from the game, scaled up) ----
+x.save();
+x.translate(236, 300);
+x.scale(5.4, 5.4);
+const C = { body: '#99a2ad', light: '#b9c4d1', dark: '#7d8694', nose: '#1d1d20' };
+const drawEar = (ax, ay, rot, dir, len) => {
+  x.save(); x.translate(ax, ay); x.rotate(rot);
+  x.beginPath();
+  x.moveTo(-6.2, 0);
+  x.bezierCurveTo(-8.5 + dir * 2, len * 0.35, -7.5 + dir * 5, len * 0.68, -4 + dir * 7, len * 0.92);
+  x.quadraticCurveTo(dir * 8, len * 1.1, 4.5 + dir * 7, len * 0.9);
+  x.bezierCurveTo(7.5 + dir * 3, len * 0.58, 6.8, len * 0.3, 6, 0);
+  x.closePath();
+  x.fillStyle = C.dark; x.fill();
+  x.strokeStyle = 'rgba(70,50,36,.3)'; x.lineWidth = 1.6; x.stroke();
+  x.restore();
+};
+drawEar(-6, -10, 0.12, -0.4, 37);
+drawEar(12, -7.5, -0.34, 0.5, 40);
+EO(4, 0, 18, 17, C.body);
+// soft plush shading
+const sh = x.createRadialGradient(-2, -7, 2, 4, 0, 22);
+sh.addColorStop(0, 'rgba(255,252,240,.32)');
+sh.addColorStop(0.55, 'rgba(255,252,240,0)');
+sh.addColorStop(0.82, 'rgba(92,62,40,0)');
+sh.addColorStop(1, 'rgba(92,62,40,.25)');
+x.fillStyle = sh;
+x.beginPath(); x.ellipse(4, 0, 18, 17, 0, 0, TAU); x.fill();
+// muzzle + button nose
+E(12, 9, 11.5, 9.5, C.light);
+x.fillStyle = C.nose;
+x.beginPath();
+x.moveTo(11.5, 4.5); x.lineTo(20, 4.5);
+x.quadraticCurveTo(20.2, 9.5, 15.8, 11.8);
+x.quadraticCurveTo(11.3, 9.5, 11.5, 4.5);
+x.closePath(); x.fill();
+E(13.5, 5.8, 1.7, 1.2, 'rgba(255,255,255,.3)');
+// sleepy stitched eyes + brows + smile
+x.strokeStyle = '#33333a'; x.lineWidth = 1.8; x.lineCap = 'round';
+x.beginPath(); x.arc(-2, -7, 2.5, Math.PI * 0.15, Math.PI * 0.85); x.stroke();
+x.beginPath(); x.arc(10, -8, 2.5, Math.PI * 0.15, Math.PI * 0.85); x.stroke();
+x.save(); x.globalAlpha = 0.28;
+x.beginPath(); x.arc(-2, -13, 3.4, Math.PI * 1.15, Math.PI * 1.85); x.stroke();
+x.beginPath(); x.arc(10, -14, 3.4, Math.PI * 1.15, Math.PI * 1.85); x.stroke();
+x.restore();
+x.save(); x.globalAlpha = 0.5;
+x.beginPath(); x.arc(15.8, 14.7, 2.7, Math.PI * 0.15, Math.PI * 0.85); x.stroke();
+x.restore();
+x.restore();
+
+// scarf knot tucked under the chin
+x.save();
+x.translate(236, 408);
+x.scale(5.4, 5.4);
+for (let i = 0; i < 9; i++) {
+  const a = Math.PI * (0.08 + 0.84 * i / 8);
+  E(4 + Math.cos(a) * 11, Math.sin(a) * 4.5 - 2, 3.3, 3.3, i % 2 ? '#f3ece1' : '#d23b2f');
+}
+x.restore();
+</script>

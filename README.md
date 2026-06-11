@@ -38,6 +38,15 @@ stacked-trio button fires the Stuffie Stack, and owned upgrades add their
 own buttons (⚾ tap to throw, or drag off it to aim with a trajectory;
 » dash; yarn ball zips). Tap the chips top-right to swap hero or mute.
 
+**On a gamepad** (plug in or pair — works in any browser): left stick or
+d-pad runs, **A** jumps (hold for higher), **Y** fires the Stuffie Stack,
+**B** dashes, **X** throws the baseball (straight — or hold the **right
+stick** to aim with the trajectory arc, then press X), **RB/RT** zips the
+yarn, **LB** swaps hero, **Start** pauses and advances menus, and the shop
+navigates with stick/d-pad + A to buy, B to leave. Rumble included. Note:
+browsers only unlock sound after a click/tap/keypress, so give the page one
+tap before handing over the controller.
+
 **On keyboards:**
 
 | Action | Keys |

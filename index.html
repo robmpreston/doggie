@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Doggie &amp; Friends — The Stroll Home</title>
+<meta name="theme-color" content="#2a1c10">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Doggie & Friends">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png" type="image/png">
+<script>
+// fullscreen mode: installed PWA, any fullscreen display, touch devices, or ?fs=1
+(function () {
+  try {
+    var q = new URLSearchParams(location.search);
+    var mm = function (s) { return matchMedia(s).matches; };
+    if (q.get('fs') || mm('(display-mode: standalone)') || mm('(display-mode: fullscreen)') || mm('(pointer: coarse)')) {
+      document.documentElement.classList.add('fs');
+    }
+  } catch (e) {}
+})();
+</script>
+<style>
+  html, body { margin: 0; padding: 0; }
+  body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    background: radial-gradient(1300px 800px at 50% 18%, #4d3826, #2a1c10 75%);
+    font-family: Georgia, 'Times New Roman', serif;
+    padding: 14px 0 18px;
+    box-sizing: border-box;
+  }
+  #wrap { width: min(96vw, calc(92vh * 16 / 9), 1060px); }
+  canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 16px;
+    background: #ffe9c2;
+    box-shadow: 0 26px 70px rgba(0,0,0,.6), 0 0 0 8px rgba(255,240,210,.06);
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .cap {
+    color: #c8a273;
+    font-size: 13px;
+    font-style: italic;
+    margin: 0;
+    text-shadow: 0 2px 6px rgba(0,0,0,.5);
+    opacity: .85;
+  }
+  #rotate { display: none; }
+
+  /* ---- fullscreen experience: phones, tablets, installed app ---- */
+  html.fs, html.fs body {
+    height: 100%;
+    overflow: hidden;
+    background: #1d1207;
+  }
+  html.fs body {
+    position: fixed;
+    inset: 0;
+    padding: 0;
+    gap: 0;
+    min-height: 0;
+  }
+  html.fs #wrap {
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  html.fs canvas {
+    width: min(100vw, 177.78vh);
+    width: min(100vw, 177.78dvh);
+    height: auto;
+    max-height: 100vh;
+    max-height: 100dvh;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  html.fs .cap { display: none; }
+  @media (orientation: portrait) {
+    html.fs #rotate {
+      display: flex;
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      background: rgba(36, 23, 10, .96);
+      color: #e8cfa0;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      font-size: 21px;
+      font-style: italic;
+      line-height: 1.7;
+      padding: 24px;
+    }
+  }
+</style>
+</head>
+<body>
+  <div id="wrap"><canvas id="game" width="960" height="540"></canvas></div>
+  <p class="cap">Doggie &amp; Friends in “The Stroll Home” — starring Doggie, Bear &amp; Dearie ♥</p>
+  <div id="rotate"><div>↻<br>turn your device sideways<br>for the full storybook</div></div>
+  <script src="game.js"></script>
+  <script>
+    if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+      addEventListener('load', function () {
+        navigator.serviceWorker.register('./sw.js').catch(function () {});
+      });
+    }
+  </script>
+</body>
+</html>
