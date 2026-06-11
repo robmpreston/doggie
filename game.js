@@ -245,7 +245,7 @@ const THEMES = [
     hillFar: '#d4e4b6', hillFar2: '#c0d69e', hillMid: '#a8ca88', band: 'village',
     grass: '#92c06f', grassDark: '#74a455', soil: '#b98a60', soilDark: '#9c7048',
     water: '#a8d8e0', waterDeep: '#62a4b4', tree: 'apple', ambient: 'butterfly',
-    plats: ['leaf', 'book'],
+    plats: ['leaf', 'book'], spring: 'flower',
     foliage: ['#d893ae', '#eaa9c0', '#f6c4d4'], fruit: '#fff2f6',
     flowers: ['#f6b8cc', '#f3da8c', '#d8a8e0', '#ffd8e4'],
     haze: '253,238,236', rays: '255,224,212', mote: '255,230,238', tint: null, weather: 'petals'
@@ -642,7 +642,7 @@ function groundTopAt(col) { col = Math.floor(col); for (let y = 0; y < LH; y++) 
 
 const platforms = [];   // one-way book platforms {x,y,w,c}
 const mushrooms = [];   // bouncy {x,capY,squish}
-const SPEC = { btn: [], heart: [], enemy: [], sign: [], pillow: [], tree: [], fence: [], shop: [] };
+const SPEC = { btn: [], heart: [], enemy: [], sign: [], pillow: [], tree: [], fence: [], shop: [], mover: [], crumb: [], pulse: [], geyser: [], wind: [], roller: [], apple: [] };
 let pondCols = null;
 let GOAL = null, COTTAGE = null;
 let buttonsTotal = 0;
@@ -675,6 +675,30 @@ function trees(cols) {
     if (t !== null) SPEC.tree.push({ x: c * TILE + TILE / 2, y: t * TILE, s: 0.8 + hash(c) * 0.5 });
   });
 }
+function mover(col, row, wTiles, axis, rangeTiles, period, phase, kind) {
+  SPEC.mover.push({
+    x: col * TILE, y: row * TILE, w: wTiles * TILE, axis,
+    range: rangeTiles * TILE, period, phase: phase || 0,
+    k: kind || (THEME.plats || ['book'])[0],
+    c: PAL.bookCols[(SPEC.mover.length + 2) % PAL.bookCols.length]
+  });
+}
+function crumb(col, row, wTiles, kind) {
+  SPEC.crumb.push({ x: col * TILE, y: row * TILE, w: wTiles * TILE, k: kind || 'pages', c: PAL.bookCols[SPEC.crumb.length % PAL.bookCols.length] });
+}
+function pulse(col, row, wTiles, period, phase) {
+  SPEC.pulse.push({ x: col * TILE, y: row * TILE, w: wTiles * TILE, period, phase });
+}
+function geyser(col, period, phase) { SPEC.geyser.push({ x: col * TILE, period, phase: phase || 0 }); }
+function windZone(c0, r0, c1, r1, fx, fy, sand) {
+  SPEC.wind.push({ x: c0 * TILE, y: r0 * TILE, w: (c1 - c0) * TILE, h: (r1 - r0) * TILE, fx: fx || 0, fy: fy || 0, sand: !!sand });
+}
+function rollerZone(kind, trigCol, startCol, endCol, period) {
+  SPEC.roller.push({ kind, trig: trigCol * TILE, start: startCol * TILE, end: endCol * TILE, period: period || 4 });
+}
+function appleZone(c0, c1, period) { SPEC.apple.push({ x0: c0 * TILE, x1: c1 * TILE, period }); }
+function tide(amp, period) { levelTide = { amp, period }; }
+
 function goalBook(col) {
   const t = groundTopAt(col);
   GOAL = { type: 'book', x: col * TILE - 34, y: t * TILE - 104, w: 68, h: 104 };
@@ -699,7 +723,7 @@ function buildL1() {
   fillGround(164, 195, 12);
 
   plat(58.6, 7, 2);
-  plat(71, 10, 3);
+  mover(71.5, 10, 2, 'h', 1.1, 5, 0);
   plat(97, 4.5, 2);
   plat(134, 9.5, 2); plat(137.5, 7.5, 2); plat(141, 5.5, 2);
   plat(161, 10.5, 3);
@@ -787,6 +811,9 @@ function buildL2() {
   heartPickup(40.5, 5);
   heartPickup(81.5, 3.2);
   heartPickup(120.5, 6.4);
+  mover(88, 5, 2, 'v', 1.3, 7, 0);
+  mover(94, 3.8, 2, 'v', 1.3, 7, 2);
+  btn(88.5, 2.4); btn(89.5, 2.4); btn(94.5, 1.2); btn(95.5, 1.2);
 
   rhino(46, 11); rhino(62, 12); rhino(115, 12); rhino(126, 8); rhino(144, 12);
   tiger(22, 11); tiger(90, 7); tiger(93, 7); tiger(131, 8); tiger(170, 12);
@@ -844,6 +871,11 @@ function buildL3() {
   heartPickup(53.5, 6);
   heartPickup(62.5, 6.4);
   heartPickup(136, 4.4);
+  windZone(50, 11, 58, 12.4, 0, 0, true);
+  windZone(116, 11, 124, 12.4, 0, 0, true);
+  rollerZone('tumble', 0, 97, 108, 4);
+  rollerZone('tumble', 0, 142, 158, 4.5);
+  sign(49, ['Soft sand ahead —', 'hop to stay on top!']);
 
   rhino(57, 12); rhino(68, 8); rhino(105, 12); rhino(118, 12); rhino(141, 12); rhino(170, 12);
   tiger(24, 10); tiger(36, 10); tiger(80, 4); tiger(123, 12); tiger(133, 12);
@@ -889,6 +921,10 @@ function buildL4() {
   plat(75, 0.8, 2); plat(79, -0.6, 2);
   btn(75.5, 0); btn(76.5, 0); btn(79.5, -1.4); btn(80.5, -1.4);
   heartPickup(80, -2);
+  appleZone(44, 56, 2.2);
+  appleZone(132, 150, 2);
+  windZone(119, 8, 131, 12.6, 170, 0);
+  sign(43, ['Apples are dropping!', 'Mind your noggin!']);
   rawr(53, 12); rhino(74, 5); tiger(78, 5); bird(75, 2);
   rhino(104, 12); tiger(108, 12); rawr(112, 12); bird(123, 9);
   rhino(136, 12); tiger(141, 12); rhino(146, 12); tiger(158, 12); rawr(170, 12);
@@ -916,7 +952,7 @@ function buildL5() {
   fillGround(151, 154, 8); fillGround(155, 158, 10);
   fillGround(161, 195, 12);
   plat(27, 6.5, 2);
-  plat(120, 10, 2); plat(123.5, 8, 2); plat(127, 6, 2); plat(130.5, 4, 2);
+  crumb(120, 10, 2, 'ice'); crumb(123.5, 8, 2, 'ice'); crumb(127, 6, 2, 'ice'); crumb(130.5, 4, 2, 'ice');
   shroom(86);
   btnRow(5, 9, 10.8); btn(17, 8.8); btn(23, 6.8);
   btnRow(32, 36, 5.8); btnRow(41, 46, 1.8); btn(49, 1.8); btn(51, 1.8);
@@ -928,6 +964,9 @@ function buildL5() {
   btn(152, 6.8); btn(156, 8.8);
   btnRow(165, 169, 10.8); btnRow(174, 178, 10.8);
   heartPickup(27.5, 5); heartPickup(48, 1.6); heartPickup(131.5, 2.6);
+  rollerZone('snow', 68, 64, 86);
+  sign(66, ['Uh oh… SNOWBALL!', 'Run, friends, run!']);
+  sign(118, ['Cracking ice ahead —', 'keep hopping, don\'t linger!']);
   bird(34, 4.5); tiger(44, 3); tiger(65, 11);
   rhino(70, 12); rhino(76, 12); bird(84, 9);
   tiger(102, 12); rawr(107, 12); rhino(113, 12); bird(126, 5);
@@ -973,6 +1012,9 @@ function buildL6() {
   plat(85, 1.6, 2); plat(89, 0.2, 2);
   btn(85.5, 0.8); btn(86.5, 0.8); btn(89.5, -0.6); btn(90.5, -0.6);
   heartPickup(90, -1.2);
+  windZone(38, 5, 40.5, 12, 0, -1500);
+  windZone(47, 5, 49.5, 12, 0, -1500);
+  sign(34, ['Petal breezes lift you!', 'Float up, up, up!']);
   tiger(31, 11); bird(41, 6); bird(48, 6.5);
   rawr(59, 12); rhino(67, 12); tiger(73, 12);
   bird(85, 4); tiger(90, 7);
@@ -1020,6 +1062,9 @@ function buildL7() {
   btn(161.7, 9.2); btn(163, 9.2);
   btnRow(167, 171, 10.8); btnRow(176, 180, 10.8);
   heartPickup(32.5, 6); heartPickup(75, 5.4); heartPickup(108.5, 6.4);
+  tide(55, 10);
+  mover(100, 11.2, 2, 'h', 6, 12, 0, 'drift');
+  sign(17, ['The tide rises and falls…', 'cross when the sand shows!']);
   bird(21, 9); tiger(31, 12); bird(44, 9);
   rawr(55, 12); rhino(62, 12); rhino(68, 12);
   tiger(78, 7); bird(82, 4.5); rawr(85, 7);
@@ -1052,9 +1097,9 @@ function buildL8() {
   fillGround(155, 162, 12);
   fillGround(166, 195, 12);
   plat(41.5, 7, 2);
-  plat(47, 8.5, 2); plat(51, 6.5, 2); plat(55, 8.5, 2);
+  pulse(47, 8.5, 2, 2.6, 0); pulse(51, 6.5, 2, 2.6, 0.33); pulse(55, 8.5, 2, 2.6, 0.66);
   plat(87, 5.5, 2);
-  plat(120, 9.5, 2); plat(124, 7.5, 2); plat(128, 9.5, 2); plat(132, 7.5, 2);
+  pulse(120, 9.5, 2, 2.8, 0); pulse(124, 7.5, 2, 2.8, 0.25); pulse(128, 9.5, 2, 2.8, 0.5); pulse(132, 7.5, 2, 2.8, 0.75);
   plat(163, 10, 3);
   shroom(14); shroom(21); shroom(26); shroom(85); shroom(89);
   btnRow(3, 7, 10.8); btn(13, 9.8); btn(16, 9.8);
@@ -1074,6 +1119,7 @@ function buildL8() {
   plat(75, 1.4, 2); plat(79, 0, 2);
   btn(75.5, 0.6); btn(76.5, 0.6); btn(79.5, -0.8); btn(80.5, -0.8);
   heartPickup(80, -1.4);
+  sign(45, ['Glow-shelves blink to', 'the hollow\'s heartbeat!']);
   bird(24, 8); tiger(36, 12); rawr(40, 12);
   rhino(49, 12); tiger(55, 12); bird(52, 5);
   rawr(64, 12);
@@ -1107,7 +1153,7 @@ function buildL9() {
   fillGround(160, 160, 13); fillGround(162, 162, 13);
   fillGround(164, 195, 12);
   plat(34.5, 7, 2);
-  plat(126, 9.5, 2); plat(129.5, 7.5, 2); plat(133, 5.5, 2); plat(136.5, 7.5, 2); plat(140, 9.5, 2);
+  plat(126, 9.5, 2); plat(129.5, 7.5, 2); crumb(133, 5.5, 2, 'stone'); crumb(136.5, 7.5, 2, 'stone'); plat(140, 9.5, 2);
   shroom(36);
   btnRow(3, 7, 10.8); btn(12, 9.8);
   btn(18.5, 11) ; btn(21.5, 10); btn(24.5, 11); btn(27.5, 10);
@@ -1124,6 +1170,10 @@ function buildL9() {
   btn(160.5, 11); btn(162.5, 11);
   btnRow(167, 171, 10.8); btnRow(176, 180, 10.8);
   heartPickup(35.5, 5.8); heartPickup(60, 0.6); heartPickup(133.5, 4.4);
+  tide(45, 11);
+  geyser(22.5, 5, 0.3);
+  geyser(92.5, 4.5, 0); geyser(98.5, 4.5, 0.5);
+  sign(15, ['Geysers go WHOOSH!', 'Ride them up — mind the swell!']);
   bird(23, 9); rhino(34, 12); tiger(38, 12);
   tiger(45, 7); rawr(49, 7); bird(52, 4);
   tiger(63, 2);
@@ -1156,9 +1206,9 @@ function buildL10() {
   fillGround(141, 143, 12);
   fillGround(144, 156, 12);
   fillGround(159, 195, 12);
-  plat(25, 8.5, 2); plat(29.5, 6.5, 2);
-  plat(110, 9.5, 2); plat(113.5, 7.5, 2); plat(117, 9.5, 2); plat(120.5, 7.5, 2);
-  plat(157, 10, 2);
+  mover(25.5, 8.5, 2, 'h', 1, 5, 0, 'cloud'); plat(29.5, 6.5, 2);
+  plat(110, 9.5, 2); pulse(113.5, 7.5, 2, 3, 0); plat(117, 9.5, 2); pulse(120.5, 7.5, 2, 3, 0.5);
+  crumb(157, 10, 2, 'pages');
   shroom(31); shroom(44);
   btnRow(4, 8, 10.8); btn(15, 9.8); btn(21, 8.8);
   btn(25.5, 7.7); btn(26.5, 7.7); btn(30, 5.7); btn(31, 5.7);
@@ -1177,6 +1227,7 @@ function buildL10() {
   plat(69, 1.4, 2); plat(73, 0, 2);
   btn(69.5, 0.6); btn(70.5, 0.6); btn(73.5, -0.8); btn(74.5, -0.8);
   heartPickup(74, -1.4);
+  sign(24, ['Everything you learned —', 'one starlit stroll home!']);
   tiger(35, 11); bird(43, 8);
   rawr(56, 12); rhino(59, 12);
   tiger(66, 7); bird(70, 4); rawr(73, 7);
@@ -1213,6 +1264,8 @@ function buildLevel(n) {
   platforms.length = 0; mushrooms.length = 0;
   SPEC.btn = []; SPEC.heart = []; SPEC.enemy = []; SPEC.sign = [];
   SPEC.pillow = []; SPEC.tree = []; SPEC.fence = []; SPEC.shop = [];
+  SPEC.mover = []; SPEC.crumb = []; SPEC.pulse = []; SPEC.geyser = []; SPEC.wind = []; SPEC.roller = []; SPEC.apple = [];
+  levelTide = null;
   GOAL = null; COTTAGE = null;
   butterflies.length = 0;
   THEME = THEMES[n];
@@ -1422,6 +1475,12 @@ function cycleHero() {
 }
 let items = { btn: [], heart: [] };
 let enemies = [];
+let levelTide = null;
+let movers = [], crumbs = [], pulses = [], geysers = [], winds = [], rollerZones = [], rollers = [], appleZones = [], apples = [];
+function surfY() {
+  return WORLD_H - 64 - (levelTide ? Math.sin(simT * TAU / levelTide.period) * levelTide.amp : 0);
+}
+function pulseOn(pu) { return ((simT / pu.period + pu.phase) % 1) < 0.55; }
 let particles = [], popups = [];
 const butterflies = [];
 
@@ -1447,6 +1506,16 @@ function resetLevel() {
   items.btn = SPEC.btn.map(b => ({ x: b.x, y: b.y, got: false }));
   items.heart = SPEC.heart.map(h => ({ x: h.x, y: h.y, got: false }));
   shops = SPEC.shop.map(s => ({ x: s.x, y: s.y, hopT: 0, near: false, tapBuy: false }));
+  movers = SPEC.mover.map(s => Object.assign({}, s, { x0: s.x, y0: s.y, dx: 0, dy: 0 }));
+  crumbs = SPEC.crumb.map(s => Object.assign({}, s, { state: 'idle', t: 0 }));
+  pulses = SPEC.pulse.slice();
+  geysers = SPEC.geyser.map(s => Object.assign({}, s, { h: 0, erupt: false, warn: false }));
+  winds = SPEC.wind.slice();
+  rollerZones = SPEC.roller.map(s => Object.assign({}, s, { active: null, cd: 0, t: 0 }));
+  rollers = [];
+  appleZones = SPEC.apple.map(s => Object.assign({}, s, { t: hash(s.x0) * s.period }));
+  apples = [];
+  player.onMover = null; player.sandT = 0;
   enemies = SPEC.enemy.map(e => ({
     type: e.type, x: e.x, y: e.y, ax: e.x, ay: e.y,
     dir: hash(e.x) > 0.5 ? 1 : -1, fdir: 1, rot: 0, t: hash(e.x) * 9, ph: hash(e.x * 7) * 9,
@@ -1554,6 +1623,31 @@ function physics(e, dt) {
       for (const p of platforms) {
         if (prevBot <= p.y + 0.5 && e.y >= p.y && r > p.x + 2 && l < p.x + p.w - 2) {
           e.y = p.y; e.vy = 0; e.grounded = true; break;
+        }
+      }
+    }
+    if (!e.grounded) {
+      for (const m of movers) {
+        if (prevBot <= m.y + Math.max(0, m.dy) + 0.6 && e.y >= m.y && r > m.x + 2 && l < m.x + m.w - 2) {
+          e.y = m.y; e.vy = 0; e.grounded = true; e.onMover = m; break;
+        }
+      }
+    }
+    if (!e.grounded) {
+      for (const cb of crumbs) {
+        if (cb.state === 'gone') continue;
+        if (prevBot <= cb.y + 0.5 && e.y >= cb.y && r > cb.x + 2 && l < cb.x + cb.w - 2) {
+          e.y = cb.y; e.vy = 0; e.grounded = true;
+          if (cb.state === 'idle') { cb.state = 'shake'; cb.t = 0; }
+          break;
+        }
+      }
+    }
+    if (!e.grounded) {
+      for (const pu of pulses) {
+        if (!pulseOn(pu)) continue;
+        if (prevBot <= pu.y + 0.5 && e.y >= pu.y && r > pu.x + 2 && l < pu.x + pu.w - 2) {
+          e.y = pu.y; e.vy = 0; e.grounded = true; break;
         }
       }
     }
@@ -1667,7 +1761,7 @@ function update(dt) {
       if (Math.abs(player.vx) > curMS && Math.sign(player.vx) === dir) {
         player.vx -= Math.sign(player.vx) * 900 * dt; // bleed dash speed gently
       } else {
-        const acc = (player.grounded ? ACC : AIRACC) * (THEME.ice && player.grounded ? 0.55 : 1);
+        const acc = (player.grounded ? ACC : AIRACC) * (THEME.ice && player.grounded ? 0.55 : 1) * (1 - 0.5 * (player.sandT || 0));
         player.vx = clamp(player.vx + dir * acc * dt, -curMS, curMS);
       }
       player.face = dir;
@@ -1683,7 +1777,7 @@ function update(dt) {
     if (jumpPressed) player.jumpBuf = 0.12;
     player.jumpBuf = Math.max(0, player.jumpBuf - dt);
     if (player.jumpBuf > 0 && player.coyote > 0) {
-      player.vy = -JUMP; player.jumpBuf = 0; player.coyote = 0;
+      player.vy = -JUMP * (1 - 0.28 * (player.sandT || 0)); player.jumpBuf = 0; player.coyote = 0;
       player.squash = -0.35; player.grounded = false;
       sfx.jump();
       spawnParts(player.x, player.y, 'puff', 4, { speed: 50, life: 0.4, color: '#efe6d6' });
@@ -1723,6 +1817,11 @@ function update(dt) {
       player.vy = Math.min(FALLCAP, player.vy + g * dt);
     }
 
+    if (player.onMover) {
+      player.x += player.onMover.dx || 0;
+      player.y += player.onMover.dy || 0;
+    }
+    player.onMover = null;
     const wasGrounded = player.grounded;
     const prevVy = player.vy;
     player.pBot = player.y;
@@ -1748,6 +1847,148 @@ function update(dt) {
 
   // mushroom squish recovery
   mushrooms.forEach(m => { m.squish = Math.max(0, m.squish - dt * 3); });
+
+  // ---- moving platforms
+  for (const m of movers) {
+    const prevX = m.x, prevY = m.y;
+    const mph = simT * (TAU / m.period) + m.phase;
+    m.x = m.x0 + (m.axis === 'h' ? Math.sin(mph) * m.range : 0);
+    m.y = m.y0 + (m.axis === 'v' ? Math.sin(mph) * m.range : 0);
+    m.dx = m.x - prevX; m.dy = m.y - prevY;
+  }
+  // ---- crumbling platforms
+  for (const cb of crumbs) {
+    if (cb.state === 'shake') {
+      cb.t += dt;
+      if (Math.random() < dt * 18) {
+        spawnParts(cb.x + Math.random() * cb.w, cb.y + 10, 'puff', 1, { speed: 24, life: 0.3, color: cb.k === 'ice' ? '#dceef8' : '#e8dcc8' });
+      }
+      if (cb.t > 0.55) {
+        cb.state = 'gone'; cb.t = 0;
+        spawnParts(cb.x + cb.w / 2, cb.y + 8, 'puff', 9, { speed: 90, life: 0.55, color: cb.k === 'ice' ? '#dceef8' : '#e8dcc8' });
+        blip(280, 120, 0.18, 'triangle', 0.05);
+      }
+    } else if (cb.state === 'gone') {
+      cb.t += dt;
+      if (cb.t > 2.6) {
+        cb.state = 'idle'; cb.t = 0;
+        spawnParts(cb.x + cb.w / 2, cb.y + 6, 'sparkle', 5, { speed: 60, life: 0.4, color: '#fff3c0', grav: 0 });
+      }
+    }
+  }
+  // ---- geysers: hazard + elevator on a rhythm
+  for (const g of geysers) {
+    const gpos = (simT / g.period + g.phase) % 1;
+    g.erupt = gpos > 0.68;
+    g.warn = gpos > 0.52 && !g.erupt;
+    if (g.erupt) {
+      g.h = 200 * Math.min(1, (gpos - 0.68) / 0.12);
+      const gBase = WORLD_H - 64;
+      if (Math.abs(player.x - g.x) < 26 && player.y > gBase - g.h - 10 && player.y < gBase + 40) {
+        player.vy = Math.min(player.vy, -760);
+        player.launchT = 0.35;
+        if (Math.random() < dt * 30) spawnParts(player.x, player.y, 'splash', 1, { speed: 60, life: 0.4, color: THEME.waterDeep });
+      }
+    } else g.h = 0;
+    if (g.warn && Math.random() < dt * 8) {
+      spawnParts(g.x + (Math.random() - 0.5) * 24, WORLD_H - 60, 'splash', 1, { speed: 50, life: 0.4, color: THEME.water });
+    }
+  }
+  // ---- wind, updrafts and soft sand
+  player.sandT = Math.max(0, (player.sandT || 0) - dt * 3);
+  for (const wz of winds) {
+    if (player.x > wz.x && player.x < wz.x + wz.w && player.y > wz.y && player.y - player.h < wz.y + wz.h) {
+      if (wz.sand) {
+        if (player.grounded) player.sandT = Math.min(1, player.sandT + dt * 5);
+      } else {
+        if (wz.fx) player.vx = clamp(player.vx + wz.fx * dt, -430, 430);
+        if (wz.fy) player.vy = Math.max(-280, player.vy + wz.fy * dt);
+      }
+    }
+  }
+  // ---- rollers: chasing snowballs & tumbleweeds
+  for (const z of rollerZones) {
+    z.cd = Math.max(0, z.cd - dt);
+    if (z.kind === 'snow') {
+      if (!z.active && z.cd <= 0 && player.x > z.trig && player.x < z.trig + 220) {
+        z.active = { x: z.start, y: 0, dir: 1, r: 30, rot: 0, kind: 'snow', zone: z };
+        rollers.push(z.active);
+        popup(player.x, player.y - 92, 'SNOWBALL!');
+        blip(120, 80, 0.4, 'sawtooth', 0.07);
+        rumble(0.5, 0.7, 250);
+      }
+    } else {
+      z.t += dt;
+      if (z.t > z.period && Math.abs(player.x - z.end) < VW) {
+        z.t = 0;
+        rollers.push({ x: z.end, y: 0, dir: -1, r: 14, rot: 0, kind: 'tumble', zone: z });
+      }
+    }
+  }
+  for (let i = rollers.length - 1; i >= 0; i--) {
+    const ro = rollers[i];
+    const rSpd = ro.kind === 'snow' ? 205 : 125 + Math.sin(simT * 2 + ro.x * 0.01) * 20;
+    ro.x += ro.dir * rSpd * dt;
+    ro.rot += ro.dir * rSpd * dt / ro.r;
+    const rgy = groundBelowY(ro.x, 0);
+    if (rgy === null) {
+      spawnParts(ro.x, surfY(), 'splash', 8, { speed: 120, life: 0.6, color: THEME.waterDeep });
+      if (ro.zone && ro.zone.kind === 'snow') { ro.zone.active = null; ro.zone.cd = 6; }
+      rollers.splice(i, 1);
+      continue;
+    }
+    ro.y = rgy;
+    if (ro.kind === 'snow' && (ro.x > ro.zone.end || ro.x < ro.zone.start - 80)) {
+      ro.zone.active = null; ro.zone.cd = 6;
+      rollers.splice(i, 1);
+      continue;
+    }
+    if (ro.kind === 'tumble' && (ro.x < ro.zone.start - 60 || ro.x > ro.zone.end + 120)) { rollers.splice(i, 1); continue; }
+    if (player.invuln <= 0 &&
+        Math.abs(player.x - ro.x) < ro.r + 12 && player.y > ro.y - ro.r * 2 && player.y - player.h < ro.y) {
+      const fromAbove = player.pBot <= ro.y - ro.r * 2 + 12 || (player.vy > 0 && player.y - (ro.y - ro.r * 2) < 26);
+      if (ro.kind === 'tumble' && fromAbove) {
+        spawnParts(ro.x, ro.y - ro.r, 'puff', 8, { speed: 90, life: 0.5, color: '#b89a6a' });
+        popup(ro.x, ro.y - 40, 'poof!');
+        player.vy = -480; player.squash = -0.3;
+        sfx.stomp();
+        rollers.splice(i, 1);
+        continue;
+      }
+      hurtPlayer(false, Math.sign(player.x - ro.x) || 1);
+    }
+  }
+  // ---- falling apples
+  for (const z of appleZones) {
+    z.t += dt;
+    if (z.t > z.period) {
+      z.t = 0;
+      const apx = z.x0 + hash(simT * 7.3 + z.x0) * (z.x1 - z.x0);
+      if (Math.abs(apx - (camX + VW / 2)) < VW * 0.8) {
+        const agy = groundTopAt(Math.floor(apx / TILE));
+        if (agy !== null) apples.push({ x: apx, y: agy * TILE - 196, vy: 30, rot: hash(apx) * 6 });
+      }
+    }
+  }
+  for (let i = apples.length - 1; i >= 0; i--) {
+    const ap = apples[i];
+    ap.vy = Math.min(560, ap.vy + 1300 * dt);
+    ap.y += ap.vy * dt;
+    ap.rot += dt * 4;
+    const agy2 = groundBelowY(ap.x, ap.y - 20);
+    if ((agy2 !== null && ap.y >= agy2) || ap.y > WORLD_H) {
+      if (agy2 !== null) spawnParts(ap.x, agy2 - 4, 'puff', 5, { speed: 60, life: 0.4, color: '#d9716a' });
+      apples.splice(i, 1);
+      continue;
+    }
+    if (player.invuln <= 0 &&
+        Math.abs(player.x - ap.x) < 18 && Math.abs((player.y - 24) - ap.y) < 26) {
+      spawnParts(ap.x, ap.y, 'puff', 5, { speed: 70, life: 0.4, color: '#d9716a' });
+      apples.splice(i, 1);
+      hurtPlayer(false, Math.sign(player.x - ap.x) || 1);
+      continue;
+    }
+  }
 
   // ---- yarn zinger
   yarnCd = Math.max(0, yarnCd - dt);
@@ -1891,13 +2132,16 @@ function update(dt) {
     }
   }
 
-  // ---- falling into ponds
-  if (player.y > WORLD_H - 50 && !player.splashed) {
-    player.splashed = true;
-    sfx.splash(); popup(player.x, WORLD_H - 100, THEME.splashWord || 'Splash!');
-    spawnParts(player.x, WORLD_H - 64, 'splash', 12, { speed: 160, life: 0.7, color: THEME.waterDeep });
+  // ---- falling into ponds (the tide can rise to meet you!)
+  const surfNow = surfY();
+  if (player.y > surfNow + 18) {
+    if (!player.splashed) {
+      player.splashed = true;
+      sfx.splash(); popup(player.x, surfNow - 40, THEME.splashWord || 'Splash!');
+      spawnParts(player.x, surfNow, 'splash', 12, { speed: 160, life: 0.7, color: THEME.waterDeep });
+    }
+    if (player.y > surfNow + 42) hurtPlayer(true, 0);
   }
-  if (player.y > WORLD_H + 50) hurtPlayer(true, 0);
 
   // ---- win condition: reach the cottage door
   if (GOAL && player.x + 15 > GOAL.x && player.x - 15 < GOAL.x + GOAL.w &&
@@ -2015,7 +2259,7 @@ function updateTiger(en, dt) {
       en.pause = chase ? Math.max(0.14, 0.26 - TIER() * 0.04) : 0.5 + hash(en.x * 3 + en.t) * 0.45;
     }
   }
-  if (en.y > WORLD_H - 46) { // tumbled into a pond
+  if (en.y > surfY() + 14) { // tumbled into a pond
     en.gone = true; en.poof = 1;
     sfx.splash();
     spawnParts(en.x, WORLD_H - 64, 'splash', 8, { speed: 130, life: 0.6, color: THEME.waterDeep });
@@ -3370,7 +3614,7 @@ function drawHills() {
 function drawPonds() {
   if (!pondCols) return;
   const x0 = Math.max(0, Math.floor(camX / TILE) - 1), x1 = Math.min(LW - 1, Math.ceil((camX + VW) / TILE) + 1);
-  const surf = WORLD_H - 64;
+  const surf = surfY();
   const pondGrad = cachedGrad('pond', () => {
     const g = ctx.createLinearGradient(0, surf, 0, WORLD_H);
     g.addColorStop(0, THEME.water);
@@ -3516,13 +3760,9 @@ function drawTiles() {
   }
 }
 
-function drawBooks() {
-  platforms.forEach((p, i) => {
-    if (p.x + p.w < camX - 40 || p.x > camX + VW + 40) return;
-    const w = p.w;
-    ctx.save();
-    ctx.translate(0, Math.sin(simT * 1.3 + i * 2) * 1.5);
-    ctx.globalAlpha = 0.18; E(p.x + w / 2, p.y + 38, w * 0.42, 6, '#4a3120'); ctx.globalAlpha = 1;
+function platShape(p, i) {
+  const w = p.w;
+  {
     if (p.k === 'log') {
       ctx.fillStyle = '#8a6242'; RR(p.x, p.y + 2, w, 16, 8); ctx.fill();
       ctx.strokeStyle = 'rgba(60,38,22,.45)'; ctx.lineWidth = 2; RR(p.x, p.y + 2, w, 16, 8); ctx.stroke();
@@ -3654,6 +3894,203 @@ function drawBooks() {
       ctx.lineTo(p.x + w - 8, p.y + 14);
       ctx.closePath(); ctx.fill();
     }
+  }
+}
+function drawBooks() {
+  platforms.forEach((p, i) => {
+    if (p.x + p.w < camX - 40 || p.x > camX + VW + 40) return;
+    ctx.save();
+    ctx.translate(0, Math.sin(simT * 1.3 + i * 2) * 1.5);
+    ctx.globalAlpha = 0.18; E(p.x + p.w / 2, p.y + 38, p.w * 0.42, 6, '#4a3120'); ctx.globalAlpha = 1;
+    platShape(p, i);
+    ctx.restore();
+  });
+  // moving platforms (drawn with the same biome shapes)
+  movers.forEach((m, i) => {
+    if (m.x + m.w < camX - 80 || m.x > camX + VW + 80) return;
+    ctx.save();
+    ctx.globalAlpha = 0.18; E(m.x + m.w / 2, m.y + 38, m.w * 0.42, 6, '#4a3120'); ctx.globalAlpha = 1;
+    platShape(m, i + 40);
+    ctx.restore();
+  });
+  // crumbling platforms
+  crumbs.forEach((cb, i) => {
+    if (cb.state === 'gone') return;
+    if (cb.x + cb.w < camX - 40 || cb.x > camX + VW + 40) return;
+    ctx.save();
+    if (cb.state === 'shake') {
+      ctx.translate(Math.sin(simT * 55 + i) * 2.2, Math.sin(simT * 47) * 1.4 + cb.t * 5);
+      ctx.globalAlpha = 1 - cb.t * 0.5;
+    }
+    if (cb.k === 'pages') {
+      // a loose sheaf of pages
+      ctx.fillStyle = '#f3e8cf'; RR(cb.x + 2, cb.y + 5, cb.w - 4, 9, 3); ctx.fill();
+      ctx.fillStyle = '#faf2de'; RR(cb.x, cb.y, cb.w, 11, 4); ctx.fill();
+      ctx.strokeStyle = 'rgba(120,90,60,.45)'; ctx.lineWidth = 1.6; RR(cb.x, cb.y, cb.w, 11, 4); ctx.stroke();
+      ctx.strokeStyle = 'rgba(120,90,60,.3)'; ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(cb.x + 8, cb.y + 4); ctx.lineTo(cb.x + cb.w - 8, cb.y + 4);
+      ctx.moveTo(cb.x + 8, cb.y + 7.5); ctx.lineTo(cb.x + cb.w - 12, cb.y + 7.5);
+      ctx.stroke();
+    } else {
+      platShape(cb, i + 80);
+    }
+    if (cb.state === 'shake') { // cracks
+      ctx.strokeStyle = 'rgba(60,40,30,.55)'; ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(cb.x + cb.w * 0.3, cb.y); ctx.lineTo(cb.x + cb.w * 0.38, cb.y + 9);
+      ctx.moveTo(cb.x + cb.w * 0.7, cb.y + 2); ctx.lineTo(cb.x + cb.w * 0.6, cb.y + 12);
+      ctx.stroke();
+    }
+    ctx.restore();
+  });
+  // pulse platforms — glow shelves that blink to a beat
+  pulses.forEach((pu, i) => {
+    if (pu.x + pu.w < camX - 40 || pu.x > camX + VW + 40) return;
+    const k = (simT / pu.period + pu.phase) % 1;
+    const on = k < 0.55;
+    let a;
+    if (on) {
+      a = Math.min(1, k / 0.07);
+      if (k > 0.43) a = 0.45 + 0.55 * Math.abs(Math.sin(k * 60)); // warning flicker
+    } else {
+      a = 0.12; // faint ghost so you can plan
+    }
+    const glowCol = THEME.orb === 'moon' ? '#cdaaf0' : '#ffe9a0';
+    ctx.save();
+    ctx.globalAlpha = a * 0.5;
+    E(pu.x + pu.w / 2, pu.y + 7, pu.w * 0.62, 16, glowCol);
+    ctx.globalAlpha = a;
+    ctx.fillStyle = on ? '#fdf6e2' : '#d8cdb8';
+    RR(pu.x, pu.y, pu.w, 13, 6); ctx.fill();
+    ctx.strokeStyle = shade('#9a6fb8', 1, 0.6); ctx.lineWidth = 2;
+    RR(pu.x, pu.y, pu.w, 13, 6); ctx.stroke();
+    for (let d = 0; d < 3; d++) {
+      E(pu.x + pu.w * (0.25 + d * 0.25), pu.y + 6.5, 2.4, 2.4, glowCol);
+    }
+    ctx.restore();
+  });
+}
+
+function drawGeysers() {
+  const base = WORLD_H - 64;
+  geysers.forEach(g => {
+    if (g.x < camX - 80 || g.x > camX + VW + 80) return;
+    // vent stones
+    E(g.x - 8, base + 4, 10, 6, shade(THEME.soilDark, 1.2));
+    E(g.x + 8, base + 5, 8, 5, shade(THEME.soilDark, 1.05));
+    if (g.h > 0) {
+      const top = base - g.h;
+      const wob = Math.sin(simT * 22) * 3;
+      ctx.save();
+      ctx.globalAlpha = 0.85;
+      const gg = ctx.createLinearGradient(0, top, 0, base);
+      gg.addColorStop(0, shade(THEME.water, 1.15, 0.25));
+      gg.addColorStop(0.4, THEME.water);
+      gg.addColorStop(1, THEME.waterDeep);
+      ctx.fillStyle = gg;
+      ctx.beginPath();
+      ctx.moveTo(g.x - 13, base);
+      ctx.quadraticCurveTo(g.x - 16 - wob, (top + base) / 2, g.x - 9, top + 8);
+      ctx.quadraticCurveTo(g.x, top - 8, g.x + 9, top + 8);
+      ctx.quadraticCurveTo(g.x + 16 + wob, (top + base) / 2, g.x + 13, base);
+      ctx.closePath(); ctx.fill();
+      E(g.x, top + 2, 16, 8, shade(THEME.water, 1.25, 0.85));
+      ctx.restore();
+      if (Math.random() < 0.4) {
+        spawnParts(g.x + (Math.random() - 0.5) * 20, top + 6, 'splash', 1, { speed: 90, life: 0.4, color: THEME.water });
+      }
+    }
+  });
+}
+
+function drawWindZones() {
+  winds.forEach((wz, i) => {
+    if (wz.x + wz.w < camX - 60 || wz.x > camX + VW + 60) return;
+    if (wz.sand) {
+      // soft sand: rippled overlay on the ground band
+      ctx.save();
+      ctx.globalAlpha = 0.3;
+      ctx.fillStyle = shade(THEME.soil, 1.18);
+      RR(wz.x, wz.y + wz.h - 14, wz.w, 12, 6); ctx.fill();
+      ctx.globalAlpha = 0.5;
+      ctx.strokeStyle = shade(THEME.soilDark, 1.1, 0.5); ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      for (let x = wz.x + 6; x < wz.x + wz.w - 6; x += 22) {
+        ctx.moveTo(x, wz.y + wz.h - 7);
+        ctx.quadraticCurveTo(x + 7, wz.y + wz.h - 11, x + 14, wz.y + wz.h - 7);
+      }
+      ctx.stroke();
+      ctx.restore();
+      return;
+    }
+    ctx.save();
+    ctx.globalAlpha = 0.3;
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+    ctx.beginPath();
+    for (let s2 = 0; s2 < 8; s2++) {
+      if (wz.fy) { // updraft: rising streaks
+        const ux = wz.x + (s2 + 0.5) * (wz.w / 8) + Math.sin(simT * 2 + s2) * 5;
+        const uy = wz.y + wz.h - ((simT * 90 + s2 * 67) % wz.h);
+        ctx.moveTo(ux, uy); ctx.quadraticCurveTo(ux + 4, uy - 9, ux, uy - 17);
+      } else { // gust: horizontal streaks
+        const dirW = Math.sign(wz.fx) || 1;
+        const ux = wz.x + ((simT * 130 + s2 * 97) % wz.w);
+        const uy = wz.y + (s2 + 0.5) * (wz.h / 8);
+        ctx.moveTo(ux, uy); ctx.quadraticCurveTo(ux + 10 * dirW, uy - 2, ux + 20 * dirW, uy);
+      }
+    }
+    ctx.stroke();
+    ctx.restore();
+  });
+}
+
+function drawRollers() {
+  rollers.forEach(ro => {
+    if (ro.x < camX - 80 || ro.x > camX + VW + 80) return;
+    ctx.save();
+    ctx.translate(ro.x, ro.y - ro.r);
+    ctx.rotate(ro.rot);
+    if (ro.kind === 'snow') {
+      E(0, 0, ro.r, ro.r, '#f4f8fb');
+      ctx.strokeStyle = 'rgba(150,175,200,.5)'; ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.arc(0, 0, ro.r, 0, TAU); ctx.stroke();
+      ctx.strokeStyle = 'rgba(150,175,200,.4)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(-ro.r * 0.25, 0, ro.r * 0.55, 0.4, 2.4); ctx.stroke();
+      ctx.beginPath(); ctx.arc(ro.r * 0.2, ro.r * 0.15, ro.r * 0.34, 2.6, 4.9); ctx.stroke();
+      E(-ro.r * 0.3, -ro.r * 0.35, ro.r * 0.3, ro.r * 0.2, 'rgba(255,255,255,.85)');
+    } else {
+      ctx.strokeStyle = '#a07c4a'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+      for (let a = 0; a < 5; a++) {
+        ctx.beginPath();
+        ctx.arc(0, 0, ro.r * (0.45 + a * 0.14), a * 1.7, a * 1.7 + 4.2);
+        ctx.stroke();
+      }
+      ctx.strokeStyle = 'rgba(120,90,50,.7)'; ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.arc(0, 0, ro.r * 0.8, 1, 5.5); ctx.stroke();
+    }
+    ctx.restore();
+    if (ro.kind === 'snow' && Math.random() < 0.3) {
+      spawnParts(ro.x - 20, ro.y - 4, 'puff', 1, { speed: 40, life: 0.4, color: '#eef4f8' });
+    }
+  });
+}
+
+function drawApples() {
+  apples.forEach(ap => {
+    if (ap.x < camX - 40 || ap.x > camX + VW + 40) return;
+    ctx.save();
+    ctx.translate(ap.x, ap.y);
+    ctx.rotate(Math.sin(ap.rot) * 0.4);
+    ctx.strokeStyle = 'rgba(70,45,22,.7)'; ctx.lineWidth = 1.4;
+    ctx.beginPath(); ctx.moveTo(0, -6); ctx.lineTo(1, -10); ctx.stroke();
+    E(3.6, -8.5, 3, 1.7, '#8fbc68', 0.5);
+    const ag = ctx.createRadialGradient(-2, -2, 1, 0, 0, 7);
+    ag.addColorStop(0, '#e8806f'); ag.addColorStop(1, '#c0392e');
+    ctx.fillStyle = ag;
+    ctx.beginPath(); ctx.arc(0, 0, 6.5, 0, TAU); ctx.fill();
+    ctx.strokeStyle = 'rgba(86,40,30,.4)'; ctx.lineWidth = 1; ctx.stroke();
+    E(-2, -2.6, 1.8, 1.2, 'rgba(255,255,255,.7)', -0.6);
     ctx.restore();
   });
 }
@@ -3663,6 +4100,28 @@ function drawMushrooms() {
     if (m.x < camX - 80 || m.x > camX + VW + 80) return;
     const sq = m.squish * 0.45;
     const baseY = m.capY + 36;
+    if (THEME.spring === 'flower') {
+      // bouncy daisy trampoline
+      ctx.strokeStyle = shade(THEME.grassDark, 0.95); ctx.lineWidth = 4; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(m.x, baseY); ctx.quadraticCurveTo(m.x + 3, baseY - 14, m.x, baseY - 22); ctx.stroke();
+      E(m.x - 7, baseY - 12, 6, 3, shade(THEME.grass, 0.95), 0.5);
+      E(m.x + 8, baseY - 16, 6, 3, shade(THEME.grass, 0.95), -0.5);
+      ctx.save();
+      ctx.translate(m.x, baseY - 24);
+      ctx.scale(1 + sq * 0.5, 1 - sq);
+      for (let p5 = 0; p5 < 8; p5++) {
+        const a = p5 / 8 * TAU + 0.3;
+        ctx.save(); ctx.translate(Math.cos(a) * 17, Math.sin(a) * 7 - 3); ctx.rotate(a);
+        ctx.fillStyle = '#fffdf4';
+        ctx.beginPath(); ctx.ellipse(0, 0, 11, 5.5, 0, 0, TAU); ctx.fill();
+        ctx.strokeStyle = 'rgba(86,60,40,.25)'; ctx.lineWidth = 1.2; ctx.stroke();
+        ctx.restore();
+      }
+      E(0, -3, 11, 7, '#f3c93c');
+      E(-3, -5, 4, 2.4, 'rgba(255,255,255,.55)');
+      ctx.restore();
+      return;
+    }
     ctx.fillStyle = '#f3e6c8';
     RR(m.x - 9, baseY - 26, 18, 26, 7); ctx.fill();
     ctx.save();
@@ -4419,7 +4878,7 @@ function drawPlayer() {
   if (player.invuln > 0 && Math.floor(player.invuln * 9) % 2 === 0 && state === 'play') return;
   drawShadow(player.x, player.y, 19);
   const sq = special && special.phase === 'spring' ? special.sq : player.squash;
-  CHAR_DRAW[CHARS[heroIdx]](player.x, player.y, {
+  CHAR_DRAW[CHARS[heroIdx]](player.x, player.y + (player.sandT || 0) * 9, {
     face: player.face, run: player.run, grounded: player.grounded, vy: player.vy, squash: sq, t: simT
   });
 }
@@ -4858,8 +5317,10 @@ function draw() {
   ctx.save();
   ctx.translate(-Math.round(camX), -Math.round(camY));
   drawPonds();
+  drawGeysers();
   drawTreesAndFences();
   drawTiles();
+  drawWindZones();
   drawBooks();
   drawMushrooms();
   drawCottage();
@@ -4868,6 +5329,8 @@ function draw() {
   drawShops();
   drawItems();
   drawLeaves();
+  drawRollers();
+  drawApples();
   enemies.forEach(en => {
     if (en.gone) return;
     if (en.x < camX - 160 || en.x > camX + VW + 160) return;
