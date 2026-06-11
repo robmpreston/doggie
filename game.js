@@ -3671,7 +3671,7 @@ function drawTiles() {
       if (!S(tx, ty)) continue;
       const px = tx * TILE, py = ty * TILE;
       ctx.fillStyle = soilPat || THEME.soil;
-      ctx.fillRect(px, py, TILE, TILE);
+      ctx.fillRect(px - 0.6, py - 0.6, TILE + 1.2, TILE + 1.2);
       if (!S(tx - 1, ty)) { ctx.fillStyle = 'rgba(90,55,30,.18)'; ctx.fillRect(px, py, 3, TILE); }
       if (!S(tx + 1, ty)) { ctx.fillStyle = 'rgba(90,55,30,.18)'; ctx.fillRect(px + TILE - 3, py, 3, TILE); }
       if (!S(tx, ty - 1)) {
@@ -5315,7 +5315,8 @@ function draw() {
   drawHills();
   lightRays();
   ctx.save();
-  ctx.translate(-Math.round(camX), -Math.round(camY));
+  // snap the camera to the device-pixel grid so tile edges never antialias into seams
+  ctx.translate(-Math.round(camX * RS) / RS, -Math.round(camY * RS) / RS);
   drawPonds();
   drawGeysers();
   drawTreesAndFences();
