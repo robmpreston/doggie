@@ -1,6 +1,6 @@
 /* Doggie & Friends service worker — network-first with offline fallback.
    Bump CACHE when deploying a new build to clear old copies. */
-const CACHE = 'doggie-v1';
+const CACHE = 'doggie-v2';
 const SHELL = [
   './',
   './index.html',

@@ -10,8 +10,8 @@
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 const VW = 960, VH = 540, TILE = 48;
-const LW = 196, LH = 15;
-const WORLD_W = LW * TILE, WORLD_H = LH * TILE;
+let LW = 196, LH = 15;
+let WORLD_W = LW * TILE, WORLD_H = LH * TILE;
 const TAU = Math.PI * 2;
 const DPR_MAX = Math.min(2, (typeof devicePixelRatio === 'number' ? devicePixelRatio : 1) || 1);
 const RS_STEPS = [1, 1.25, 1.5, 1.75, 2].filter(s => s <= DPR_MAX + 0.001);
@@ -271,7 +271,17 @@ const THEMES = [
     haze: '150,140,180', rays: '198,178,236', mote: '222,202,255', tint: 'rgba(70,50,110,.12)',
     lily: '#8a78b8'
   },
-  { // 9 — ember canyon
+  { // 9 — the great bookshelf (a cosy candlelit climb)
+    skyTop: '#54422e', skyBot: '#c08a52', cloud: '#7a6448', cloudA: 0.25, orb: 'sun',
+    hillFar: '#6e5238', hillFar2: '#5a4430', hillMid: '#483424', band: 'shelf',
+    grass: '#c8a468', grassDark: '#a07c44', soil: '#75502f', soilDark: '#5e3f26',
+    water: '#8a6c48', waterDeep: '#5e4630', tree: 'bookstack', ambient: 'firefly',
+    foliage: ['#8a5c3b', '#a8744a', '#c08a56'], fruit: null,
+    flowers: ['#d8b06a', '#c87a52', '#e8cc88', '#b86a6a'],
+    haze: '110,82,52', rays: '255,198,118', mote: '255,220,160', tint: 'rgba(70,45,20,.12)',
+    plats: ['book', 'book'], lily: null, noReeds: true
+  },
+  { // 10 — ember canyon
     skyTop: '#4f3540', skyBot: '#e8784a', cloud: '#7a5450', cloudA: 0.45, orb: 'sun',
     hillFar: '#7a4a40', hillFar2: '#653a34', hillMid: '#52302c', band: 'ember',
     grass: '#8a5e48', grassDark: '#6e4636', soil: '#5e3830', soilDark: '#4a2c26',
@@ -282,7 +292,7 @@ const THEMES = [
     haze: '120,70,55', rays: '255,140,80', mote: '255,160,100', tint: 'rgba(120,40,20,.08)',
     weather: 'embers', lily: null, noReeds: true, splashWord: 'Sizzle!'
   },
-  { // 10 — the starlit stroll
+  { // 11 — the starlit stroll
     skyTop: '#2e3a5e', skyBot: '#7a6888', cloud: '#5e6480', cloudA: 0.35, orb: 'moon',
     hillFar: '#4a5a72', hillFar2: '#3c4c64', hillMid: '#2e3e54', band: 'pines',
     grass: '#5a7a68', grassDark: '#42604f', soil: '#4e4456', soilDark: '#3c3444',
@@ -364,12 +374,12 @@ function musicTick() {
 // ------------------------------------------------------------ input
 const keys = {};
 const pressed = new Set();
-const PREVENT = new Set(['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyX', 'KeyE', 'KeyC', 'KeyF', 'KeyV', 'KeyZ', 'KeyG', 'KeyP', 'KeyR', 'KeyM', 'Enter', 'Escape']);
+const PREVENT = new Set(['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyX', 'KeyE', 'KeyC', 'KeyF', 'KeyV', 'KeyZ', 'KeyG', 'KeyN', 'KeyP', 'KeyR', 'KeyM', 'Enter', 'Escape']);
 let touchUI = (typeof matchMedia === 'function') && matchMedia('(pointer: coarse)').matches;
 const touch = { left: false, right: false, jump: false };
 const activePointers = new Map();
-const SWAPBTN = { x: VW - 192, y: 70, w: 174, h: 30 };
-const MUTEBTN = { x: VW - 168, y: 112, w: 150, h: 28 };
+const SWAPBTN = { x: VW - 192, y: 90, w: 174, h: 30 };
+const MUTEBTN = { x: VW - 168, y: 130, w: 150, h: 28 };
 
 // --- kid-friendly tablet controls ---
 // floating run pad (left half) + big plush action buttons (right corner arc)
@@ -379,7 +389,8 @@ const btnHeld = {};        // button id -> pointerId while held
 function actionButtons() {
   const list = [
     { id: 'jump', x: VW - 104, y: VH - 100, r: 60 },
-    { id: 'stack', x: VW - 248, y: VH - 78, r: 46 }
+    { id: 'stack', x: VW - 248, y: VH - 78, r: 46 },
+    { id: 'power', x: VW - 122, y: VH - 330, r: 44 }
   ];
   if (upg.ball) list.push({ id: 'ball', x: VW - 120, y: VH - 232, r: 46 });
   if (upg.dash) list.push({ id: 'dash', x: VW - 234, y: VH - 186, r: 44 });
@@ -416,6 +427,10 @@ if (typeof window !== 'undefined' && window.addEventListener) {
     if (state === 'chapter') { if (chapterT > 0.6 && !e.repeat) nextLevel(); return; }
     if (!e.repeat) {
       if (c === 'KeyM') toggleMute();
+      if (c === 'KeyN' && state === 'play') { // keyboard-only: skip to the next chapter
+        if (curLevel < LEVELS.length - 1) nextLevel();
+        else winGame();
+      }
       if (c === 'KeyC' && state === 'play') cycleHero();
       if (c === 'KeyP' && state === 'play') paused = !paused;
       if (c === 'KeyR' && (state === 'play' || state === 'win' || state === 'over')) {
@@ -483,6 +498,7 @@ if (canvas.addEventListener) {
       btnHeld[hit.id] = e.pointerId;
       if (hit.id === 'jump') pressed.add('Space');
       else if (hit.id === 'stack') pressed.add('KeyX');
+      else if (hit.id === 'power') pressed.add('KeyV');
       else if (hit.id === 'dash') pressed.add('KeyZ');
       else if (hit.id === 'yarn') pressed.add('KeyG');
       else if (hit.id === 'ball') ballDrag = { id: e.pointerId, x0: p.x, y0: p.y, moved: false };
@@ -614,6 +630,7 @@ function pollGamepad() {
   if (ed(1)) pressed.add('KeyZ');           // B — dash
   if (ed(5) || ed(7)) pressed.add('KeyG');  // RB / RT — yarn zinger
   if (ed(4)) cycleHero();                   // LB — swap hero
+  if (ed(6)) pressed.add('KeyV');           // LT — hero power
   if (ed(13)) pressed.add('ArrowDown');     // d-pad down — browse the stall
 
   // right stick aims the baseball, X throws
@@ -635,14 +652,22 @@ function pollGamepad() {
 }
 
 // ------------------------------------------------------------ level data
-const solids = new Uint8Array(LW * LH);
+let solids = new Uint8Array(LW * LH);
+function setWorldSize(w, h) { // levels can reshape the world (the Bookshelf climbs!)
+  LW = w; LH = h;
+  WORLD_W = LW * TILE; WORLD_H = LH * TILE;
+  solids = new Uint8Array(LW * LH);
+}
+function slab(x0, x1, row, thick) { // floating solid shelf (not filled to the floor)
+  for (let x = x0; x <= x1; x++) for (let y = row; y < row + (thick || 2) && y < LH; y++) solids[y * LW + x] = 1;
+}
 const S = (x, y) => (x < 0 || x >= LW) ? 1 : (y < 0 || y >= LH) ? 0 : solids[y * LW + x];
 function fillGround(x0, x1, top) { for (let x = x0; x <= x1; x++) for (let y = top; y < LH; y++) solids[y * LW + x] = 1; }
 function groundTopAt(col) { col = Math.floor(col); for (let y = 0; y < LH; y++) if (S(col, y)) return y; return null; }
 
 const platforms = [];   // one-way book platforms {x,y,w,c}
 const mushrooms = [];   // bouncy {x,capY,squish}
-const SPEC = { btn: [], heart: [], enemy: [], sign: [], pillow: [], tree: [], fence: [], shop: [], mover: [], crumb: [], pulse: [], geyser: [], wind: [], roller: [], apple: [] };
+const SPEC = { btn: [], heart: [], enemy: [], sign: [], pillow: [], tree: [], fence: [], shop: [], mover: [], crumb: [], pulse: [], geyser: [], wind: [], roller: [], apple: [], page: [], cushion: [], bridge: [], boss: null, sled: null };
 let pondCols = null;
 let GOAL = null, COTTAGE = null;
 let buttonsTotal = 0;
@@ -655,8 +680,8 @@ function plat(col, row, wTiles) {
     k: kinds[Math.floor(hash((platforms.length + 1) * 7.31) * kinds.length)]
   });
 }
-function shroom(col) {
-  const top = groundTopAt(col);
+function shroom(col, row) {
+  const top = row !== undefined ? row : groundTopAt(col);
   mushrooms.push({ x: col * TILE + TILE / 2, capY: top * TILE - 36, squish: 0 });
 }
 function btn(col, row) { SPEC.btn.push({ x: col * TILE + TILE / 2, y: row * TILE }); }
@@ -666,9 +691,9 @@ function rhino(col, topRow) { SPEC.enemy.push({ type: 'rhino', x: col * TILE + T
 function tiger(col, topRow) { SPEC.enemy.push({ type: 'tiger', x: col * TILE + TILE / 2, y: topRow * TILE }); }
 function rawr(col, topRow) { SPEC.enemy.push({ type: 'rawr', x: col * TILE + TILE / 2, y: topRow * TILE }); }
 function bird(col, row) { SPEC.enemy.push({ type: 'bird', x: col * TILE + TILE / 2, y: row * TILE }); }
-function sign(col, lines) { const t = groundTopAt(col); SPEC.sign.push({ x: col * TILE + TILE / 2, y: t * TILE, lines }); }
-function pillow(col) { const t = groundTopAt(col); SPEC.pillow.push({ x: col * TILE + TILE / 2, y: t * TILE }); }
-function shop(col) { const t = groundTopAt(col); SPEC.shop.push({ x: col * TILE + TILE / 2, y: t * TILE }); }
+function sign(col, lines, row) { const t = row !== undefined ? row : groundTopAt(col); SPEC.sign.push({ x: col * TILE + TILE / 2, y: t * TILE, lines }); }
+function pillow(col, row) { const t = row !== undefined ? row : groundTopAt(col); SPEC.pillow.push({ x: col * TILE + TILE / 2, y: t * TILE }); }
+function shop(col, row) { const t = row !== undefined ? row : groundTopAt(col); SPEC.shop.push({ x: col * TILE + TILE / 2, y: t * TILE }); }
 function trees(cols) {
   cols.forEach(c => {
     const t = groundTopAt(c);
@@ -698,6 +723,19 @@ function rollerZone(kind, trigCol, startCol, endCol, period) {
 }
 function appleZone(c0, c1, period) { SPEC.apple.push({ x0: c0 * TILE, x1: c1 * TILE, period }); }
 function tide(amp, period) { levelTide = { amp, period }; }
+function page(col, row) { SPEC.page.push({ x: col * TILE, y: row * TILE }); }
+function cushion(col, bridgeId, secs, row) {
+  const t = row !== undefined ? row : groundTopAt(col);
+  SPEC.cushion.push({ x: col * TILE + TILE / 2, y: t * TILE, bridgeId, secs: secs || 0 });
+}
+function bridgePlat(id, col, row, wTiles) {
+  SPEC.bridge.push({ id, x: col * TILE, y: row * TILE, w: wTiles * TILE });
+}
+function bossGate(col, hp, spd, pounces) {
+  const t = groundTopAt(col);
+  SPEC.boss = { x: col * TILE + TILE / 2, y: t * TILE, hp: hp || 3, spd: spd || 1, pounces: pounces || 2 };
+}
+function sledRun(c0, c1) { SPEC.sled = { x0: c0 * TILE, x1: c1 * TILE }; }
 
 function goalBook(col) {
   const t = groundTopAt(col);
@@ -753,6 +791,7 @@ function buildL1() {
   plat(97.5, 1.2, 2); plat(101.5, -0.3, 2);
   btn(98, 0.4); btn(99, 0.4); btn(102, -1.1); btn(103, -1.1);
   heartPickup(102.5, -1.6);
+  page(34, 5.5); page(98, 0.2); page(147, 7);
 
   rhino(63, 12); rhino(78, 12); rhino(104, 7); rhino(140, 12); rhino(173, 12);
   tiger(47, 11); tiger(96, 7); tiger(120, 12); tiger(156, 12);
@@ -814,6 +853,9 @@ function buildL2() {
   mover(88, 5, 2, 'v', 1.3, 7, 0);
   mover(94, 3.8, 2, 'v', 1.3, 7, 2);
   btn(88.5, 2.4); btn(89.5, 2.4); btn(94.5, 1.2); btn(95.5, 1.2);
+  page(40.5, 2.5); page(76, 1.5); page(152.5, 8.5);
+  cushion(58, 'wb');
+  bridgePlat('wb', 69.5, 8.5, 2); bridgePlat('wb', 73, 7, 2);
 
   rhino(46, 11); rhino(62, 12); rhino(115, 12); rhino(126, 8); rhino(144, 12);
   tiger(22, 11); tiger(90, 7); tiger(93, 7); tiger(131, 8); tiger(170, 12);
@@ -875,9 +917,10 @@ function buildL3() {
   windZone(116, 11, 124, 12.4, 0, 0, true);
   rollerZone('tumble', 0, 97, 108, 4);
   rollerZone('tumble', 0, 142, 158, 4.5);
+  page(25.5, 6.5); page(86, 3.5); page(111.5, 8);
   sign(49, ['Soft sand ahead —', 'hop to stay on top!']);
 
-  rhino(57, 12); rhino(68, 8); rhino(105, 12); rhino(118, 12); rhino(141, 12); rhino(170, 12);
+  rhino(57, 12); rhino(68, 8); rhino(105, 12); rhino(118, 12); rhino(141, 12);
   tiger(24, 10); tiger(36, 10); tiger(80, 4); tiger(123, 12); tiger(133, 12);
   rawr(86, 4); rawr(155, 12);
   bird(42, 7); bird(131, 6.5);
@@ -885,7 +928,8 @@ function buildL3() {
   sign(5, ['Chapter 3: The Golden Dunes', 'Mind the hot sand!']);
   sign(58, ['Two big cliffs ahead!', 'Stack, recharge, stack again!']);
   sign(172, ['The chapter gate is near!']);
-  pillow(50); pillow(99);
+  pillow(50); pillow(99); pillow(166);
+  bossGate(176, 3, 1, 2);
   shop(94.5);
   trees([5, 18, 40, 50, 66, 85, 101, 116, 131, 146, 157, 165, 174, 192]);
   SPEC.fence.push([1, 5], [166, 171], [176, 181]);
@@ -923,6 +967,7 @@ function buildL4() {
   heartPickup(80, -2);
   appleZone(44, 56, 2.2);
   appleZone(132, 150, 2);
+  page(35, 2.5); page(75.5, -1.8); page(121, 6.5);
   windZone(119, 8, 131, 12.6, 170, 0);
   sign(43, ['Apples are dropping!', 'Mind your noggin!']);
   rawr(53, 12); rhino(74, 5); tiger(78, 5); bird(75, 2);
@@ -948,9 +993,11 @@ function buildL5() {
   fillGround(83, 83, 13); fillGround(86, 86, 13);
   fillGround(90, 93, 12); fillGround(94, 97, 10);
   fillGround(98, 118, 12);
-  fillGround(134, 150, 5);           // high snowfield after the book climb
-  fillGround(151, 154, 8); fillGround(155, 158, 10);
-  fillGround(161, 195, 12);
+  fillGround(134, 139, 5); fillGround(140, 144, 6); fillGround(145, 148, 7); // the toboggan slope
+  fillGround(151, 154, 8);
+  fillGround(157, 160, 9); fillGround(161, 164, 10);
+  fillGround(167, 170, 11);
+  fillGround(171, 195, 12);
   plat(27, 6.5, 2);
   crumb(120, 10, 2, 'ice'); crumb(123.5, 8, 2, 'ice'); crumb(127, 6, 2, 'ice'); crumb(130.5, 4, 2, 'ice');
   shroom(86);
@@ -960,17 +1007,22 @@ function buildL5() {
   btnRow(70, 76, 10.8); btn(83.5, 11); btn(86.5, 11);
   btnRow(100, 104, 10.8); btnRow(108, 112, 10.8);
   btn(120.5, 9.2); btn(124, 7.2); btn(127.5, 5.2); btn(131, 3.2);
-  btnRow(137, 143, 3.8); btnRow(146, 149, 3.8);
+  btnRow(136, 139, 3.8); btnRow(141, 144, 4.8); btn(146, 5.8); btn(148, 5.8);
+  btn(150, 6.5); btnRow(152, 154, 6.8); btn(155.5, 7.4); btnRow(158, 160, 7.8);
+  btnRow(162, 164, 8.8); btn(165.5, 9.4); btnRow(168, 170, 9.8);
   btn(152, 6.8); btn(156, 8.8);
   btnRow(165, 169, 10.8); btnRow(174, 178, 10.8);
   heartPickup(27.5, 5); heartPickup(48, 1.6); heartPickup(131.5, 2.6);
   rollerZone('snow', 68, 64, 86);
+  sledRun(134, 168);
+  page(27.5, 3); page(84.5, 8.5); page(131.5, 0.8);
   sign(66, ['Uh oh… SNOWBALL!', 'Run, friends, run!']);
+  sign(131, ['Toboggan run ahead!', 'Hold on and JUMP the gaps!']);
   sign(118, ['Cracking ice ahead —', 'keep hopping, don\'t linger!']);
   bird(34, 4.5); tiger(44, 3); tiger(65, 11);
   rhino(70, 12); rhino(76, 12); bird(84, 9);
   tiger(102, 12); rawr(107, 12); rhino(113, 12); bird(126, 5);
-  tiger(140, 5); rhino(145, 5); rawr(165, 12); tiger(172, 12);
+  tiger(176, 12);
   sign(6, ['Chapter 5: The Snowy Peaks', 'Careful — the snow is slippery!']);
   sign(36, ['A frosty cliff!', 'Stuffie Stack with X!']);
   sign(182, ['The chapter gate is near!']);
@@ -1014,17 +1066,19 @@ function buildL6() {
   heartPickup(90, -1.2);
   windZone(38, 5, 40.5, 12, 0, -1500);
   windZone(47, 5, 49.5, 12, 0, -1500);
+  page(28, 3); page(48.5, 2.5); page(134.5, 8.5);
   sign(34, ['Petal breezes lift you!', 'Float up, up, up!']);
   tiger(31, 11); bird(41, 6); bird(48, 6.5);
   rawr(59, 12); rhino(67, 12); tiger(73, 12);
   bird(85, 4); tiger(90, 7);
   rhino(106, 12); rawr(111, 12); tiger(116, 12); rhino(120, 12);
   bird(128, 9); bird(133, 9.5);
-  tiger(142, 12); rhino(147, 12); rawr(151, 12); tiger(162, 12); rawr(173, 12);
+  tiger(142, 12); rhino(147, 12); rawr(151, 12); tiger(162, 12);
   sign(5, ['Chapter 6: Petal Gardens', 'Hop the books over the ponds!']);
   sign(76, ['Another tall cliff —', 'Stuffie Stack time!']);
   sign(185, ['The chapter gate is near!']);
-  pillow(56); pillow(114);
+  pillow(56); pillow(114); pillow(171);
+  bossGate(178, 3, 1.15, 3);
   shop(96.5);
   trees([3, 10, 17, 30, 57, 65, 74, 86, 100, 108, 119, 143, 152, 161, 172, 182, 191]);
   SPEC.fence.push([1, 5], [177, 182]);
@@ -1064,6 +1118,10 @@ function buildL7() {
   heartPickup(32.5, 6); heartPickup(75, 5.4); heartPickup(108.5, 6.4);
   tide(55, 10);
   mover(100, 11.2, 2, 'h', 6, 12, 0, 'drift');
+  page(21, 9); page(107, 7.5); page(89, 4);
+  bird(107, 10);
+  cushion(30, 'sb');
+  bridgePlat('sb', 38, 8.5, 2); bridgePlat('sb', 42, 8.5, 2); bridgePlat('sb', 46, 8.5, 2);
   sign(17, ['The tide rises and falls…', 'cross when the sand shows!']);
   bird(21, 9); tiger(31, 12); bird(44, 9);
   rawr(55, 12); rhino(62, 12); rhino(68, 12);
@@ -1120,6 +1178,7 @@ function buildL8() {
   btn(75.5, 0.6); btn(76.5, 0.6); btn(79.5, -0.8); btn(80.5, -0.8);
   heartPickup(80, -1.4);
   sign(45, ['Glow-shelves blink to', 'the hollow\'s heartbeat!']);
+  page(24, 6); page(87.5, 2); page(128, 5.5);
   bird(24, 8); tiger(36, 12); rawr(40, 12);
   rhino(49, 12); tiger(55, 12); bird(52, 5);
   rawr(64, 12);
@@ -1173,6 +1232,9 @@ function buildL9() {
   tide(45, 11);
   geyser(22.5, 5, 0.3);
   geyser(92.5, 4.5, 0); geyser(98.5, 4.5, 0.5);
+  page(25.5, 8.5); page(95.5, 8.5); page(62, 0.5);
+  cushion(106, 'eb', 7);
+  bridgePlat('eb', 128, 8, 2); bridgePlat('eb', 132, 7, 2);
   sign(15, ['Geysers go WHOOSH!', 'Ride them up — mind the swell!']);
   bird(23, 9); rhino(34, 12); tiger(38, 12);
   tiger(45, 7); rawr(49, 7); bird(52, 4);
@@ -1181,11 +1243,11 @@ function buildL9() {
   rhino(109, 12); tiger(113, 12); rawr(117, 12); rhino(121, 12);
   bird(131, 4.5); bird(138, 6);
   tiger(146, 12); rhino(151, 12); rawr(155, 12);
-  tiger(168, 12); rhino(172, 12);
   sign(5, ['Chapter 9: Ember Canyon', 'Hot lava! Hop the stones quick!']);
   sign(38, ['Two cliffs ahead —', 'stack, recharge, stack again!']);
   sign(182, ['The chapter gate is near!']);
-  pillow(82); pillow(123);
+  pillow(82); pillow(123); pillow(156);
+  bossGate(178, 3, 1.3, 3);
   shop(103.5);
   trees([3, 12, 33, 44, 51, 60, 75, 84, 108, 116, 144, 153, 167, 178, 191]);
   SPEC.fence.push([1, 5], [176, 181]);
@@ -1228,6 +1290,7 @@ function buildL10() {
   btn(69.5, 0.6); btn(70.5, 0.6); btn(73.5, -0.8); btn(74.5, -0.8);
   heartPickup(74, -1.4);
   sign(24, ['Everything you learned —', 'one starlit stroll home!']);
+  page(31, 3); page(74, -2.2); page(115.5, 4.5);
   tiger(35, 11); bird(43, 8);
   rawr(56, 12); rhino(59, 12);
   tiger(66, 7); bird(70, 4); rawr(73, 7);
@@ -1246,6 +1309,66 @@ function buildL10() {
   goalHome(183);
 }
 
+// ---- Chapter 9: The Great Bookshelf — a vertical climb!
+function buildL9B() {
+  setWorldSize(60, 64);
+  fillGround(0, 59, 61);             // the library floor
+  // shelf tiers, bottom to top
+  slab(0, 22, 56, 2);
+  slab(36, 59, 52, 2);
+  slab(2, 24, 47, 2);
+  slab(34, 58, 42, 2);
+  slab(0, 20, 38, 2);
+  slab(30, 56, 33, 2);
+  slab(4, 26, 28, 2);
+  slab(36, 59, 23, 2);
+  slab(2, 22, 18, 2);
+  slab(30, 50, 13, 2);
+  slab(8, 51, 7, 2);                 // the top of the bookshelf (open on the right!)
+  // ways up
+  plat(26, 58.8, 2);
+  plat(26, 54.5, 2);
+  mover(31.5, 52.8, 2, 'h', 1.4, 5, 0);
+  crumb(31, 49.5, 2, 'pages'); crumb(27, 48.3, 2, 'pages');
+  pulse(28, 44.5, 2, 2.6, 0); pulse(31.5, 43.4, 2, 2.6, 0.5);
+  plat(29, 40.5, 2); plat(24, 39, 2);
+  plat(24, 35.5, 2); plat(27.5, 34.4, 2);
+  pulse(28, 30.2, 2, 2.8, 0);
+  mover(30, 25.4, 2, 'h', 1.3, 6, 1);
+  shroom(40, 23);
+  plat(31, 20.8, 2); plat(26, 19.4, 2);
+  pulse(24, 15.2, 2, 2.6, 0); pulse(27.5, 14, 2, 2.6, 0.5);
+  plat(52, 10.6, 2); plat(52, 8.2, 2); // up through the right-side opening
+  // cushion shortcut between tiers four and five
+  cushion(56, 'lib', 0, 42);
+  bridgePlat('lib', 26, 40.8, 2); bridgePlat('lib', 22, 39.8, 2);
+  // treats along the climb
+  btnRow(6, 10, 54.8); btnRow(40, 44, 50.8); btnRow(8, 12, 45.8);
+  btnRow(40, 44, 40.8); btnRow(6, 10, 36.8); btnRow(36, 40, 31.8);
+  btnRow(8, 12, 26.8); btnRow(42, 46, 21.8); btnRow(6, 10, 16.8);
+  btnRow(36, 40, 11.8); btnRow(20, 28, 5.8);
+  heartPickup(18, 54.2); heartPickup(52, 40.6); heartPickup(10, 16.6);
+  page(44, 59.2); page(2, 42.5); page(10, 4.8);
+  plat(2, 43.8, 2); // the little ledge for the hidden page
+  // sleepy library patrol
+  tiger(12, 56); rhino(46, 52); rawr(10, 47); tiger(44, 42);
+  bird(30, 45); rhino(8, 38); tiger(40, 33); bird(28, 26);
+  rawr(48, 23); tiger(12, 18); bird(26, 12);
+  sign(5, ['Chapter 9: The Great Bookshelf', 'Climb to the very top!'], 61);
+  sign(40, ['Halfway up —', 'keep climbing, friends!'], 23);
+  pillow(44, 52); pillow(8, 38);
+  shop(50, 42);
+  SPEC.tree.push(
+    { x: 8 * TILE, y: 61 * TILE, s: 1.1 }, { x: 40 * TILE, y: 61 * TILE, s: 0.9 },
+    { x: 14 * TILE, y: 56 * TILE, s: 0.8 }, { x: 50 * TILE, y: 52 * TILE, s: 0.85 },
+    { x: 12 * TILE, y: 47 * TILE, s: 0.75 }, { x: 52 * TILE, y: 42 * TILE, s: 0.8 },
+    { x: 16 * TILE, y: 38 * TILE, s: 0.7 }, { x: 44 * TILE, y: 33 * TILE, s: 0.75 },
+    { x: 12 * TILE, y: 18 * TILE, s: 0.8 }, { x: 40 * TILE, y: 13 * TILE, s: 0.7 },
+    { x: 16 * TILE, y: 7 * TILE, s: 0.9 }
+  );
+  goalBook(46);
+}
+
 const LEVELS = [
   { name: 'The Meadow', build: buildL1 },
   { name: 'The Whispering Woods', build: buildL2 },
@@ -1255,16 +1378,19 @@ const LEVELS = [
   { name: 'Petal Gardens', build: buildL6 },
   { name: 'Sandy Shores', build: buildL7 },
   { name: 'Glowshroom Hollow', build: buildL8 },
+  { name: 'The Great Bookshelf', build: buildL9B },
   { name: 'Ember Canyon', build: buildL9 },
   { name: 'The Starlit Stroll', build: buildL10 }
 ];
 
 function buildLevel(n) {
+  setWorldSize(196, 15);
   solids.fill(0);
   platforms.length = 0; mushrooms.length = 0;
   SPEC.btn = []; SPEC.heart = []; SPEC.enemy = []; SPEC.sign = [];
   SPEC.pillow = []; SPEC.tree = []; SPEC.fence = []; SPEC.shop = [];
   SPEC.mover = []; SPEC.crumb = []; SPEC.pulse = []; SPEC.geyser = []; SPEC.wind = []; SPEC.roller = []; SPEC.apple = [];
+  SPEC.page = []; SPEC.cushion = []; SPEC.bridge = []; SPEC.boss = null; SPEC.sled = null;
   levelTide = null;
   GOAL = null; COTTAGE = null;
   butterflies.length = 0;
@@ -1464,6 +1590,7 @@ function setHero(i) {
 }
 setHero(heroIdx);
 function cycleHero() {
+  if (power) return;
   setHero((heroIdx + 1) % 3);
   try { localStorage.setItem('doggie_hero', String(heroIdx)); } catch (e) {}
   if (state === 'play') {
@@ -1477,6 +1604,11 @@ let items = { btn: [], heart: [] };
 let enemies = [];
 let levelTide = null;
 let movers = [], crumbs = [], pulses = [], geysers = [], winds = [], rollerZones = [], rollers = [], appleZones = [], apples = [];
+let pages = [], cushions = [], bridges = [], boss = null, sledZone = null;
+let power = null, powerCds = [0, 0, 0], collarOff = false; // built-in hero powers (V)
+const POWER_CD = 60;
+let pagesFound = new Set(); // survives level retries; cleared on a new story
+let gateMsgT = 0;
 function surfY() {
   return WORLD_H - 64 - (levelTide ? Math.sin(simT * TAU / levelTide.period) * levelTide.amp : 0);
 }
@@ -1515,6 +1647,17 @@ function resetLevel() {
   rollers = [];
   appleZones = SPEC.apple.map(s => Object.assign({}, s, { t: hash(s.x0) * s.period }));
   apples = [];
+  pages = SPEC.page.map((s, i) => ({ x: s.x, y: s.y, i, got: pagesFound.has(curLevel + ':' + i) }));
+  cushions = SPEC.cushion.map(s => Object.assign({}, s, { on: false, squish: 0, timer: 0 }));
+  bridges = SPEC.bridge.map((s, i) => Object.assign({}, s, { on: false, fade: 0, c: PAL.bookCols[i % PAL.bookCols.length], k: 'book' }));
+  boss = SPEC.boss ? Object.assign({}, SPEC.boss, {
+    state: 'sleep', t: 0, stateT: 0, dir: -1, vx: 0, vy: 0, w: 116, h: 70,
+    grounded: false, flew: false, hpLeft: SPEC.boss.hp, pLeft: 0, done: false, hurtT: 0
+  }) : null;
+  sledZone = SPEC.sled ? Object.assign({}, SPEC.sled) : null;
+  player.sled = false;
+  power = null; collarOff = false; powerCds = [0, 0, 0];
+  gateMsgT = 0;
   player.onMover = null; player.sandT = 0;
   enemies = SPEC.enemy.map(e => ({
     type: e.type, x: e.x, y: e.y, ax: e.x, ay: e.y,
@@ -1541,6 +1684,7 @@ function startPlay() {
 }
 function startNewGame() {
   curLevel = 0; levelStartButtons = 0; buttonsCollected = 0; timeSec = 0;
+  pagesFound = new Set();
   upg = { maxHearts: 3, speed: false, djump: false, dash: false, ball: false, ball2: false, ball3: false, yarn: false };
   buildLevel(0); resetLevel();
   state = 'play'; paused = false;
@@ -1553,6 +1697,7 @@ function nextLevel() {
 }
 function respawnFromCheckpoint() {
   hearts = upg.maxHearts;
+  player.sled = false;
   player.x = checkpoint.x; player.y = checkpoint.y;
   player.vx = 0; player.vy = 0; player.splashed = false;
   player.invuln = 1.8; deathFade = 1;
@@ -1560,6 +1705,7 @@ function respawnFromCheckpoint() {
   comps[0].x = player.x - 40; comps[0].y = player.y;
   comps[1].x = player.x - 76; comps[1].y = player.y;
   special = null; specialCd = 0; overT = 0;
+  power = null; collarOff = false;
   camX = clamp(player.x - VW * 0.42, 0, WORLD_W - VW);
   spawnParts(player.x, player.y - 20, 'puff', 10, { speed: 90, life: 0.6, color: '#efe6d6' });
   state = 'play'; paused = false;
@@ -1652,6 +1798,14 @@ function physics(e, dt) {
       }
     }
     if (!e.grounded) {
+      for (const br of bridges) {
+        if (br.fade < 0.6) continue;
+        if (prevBot <= br.y + 0.5 && e.y >= br.y && r > br.x + 2 && l < br.x + br.w - 2) {
+          e.y = br.y; e.vy = 0; e.grounded = true; break;
+        }
+      }
+    }
+    if (!e.grounded) {
       for (const m of mushrooms) {
         if (prevBot <= m.capY + 0.5 && e.y >= m.capY && r > m.x - 25 && l < m.x + 25) {
           e.y = m.capY; e.bounced = m; break;
@@ -1709,6 +1863,7 @@ function update(dt) {
   }
 
   // ---- special move state machine
+  if (player.sled) specialPressed = false;
   if (specialPressed && !special && state === 'play') {
     if (specialCd > 0) { /* still recharging */ }
     else if (!player.grounded) { if (airHintT <= 0) { popup(player.x, player.y - 70, 'land to Stack!'); airHintT = 2.5; } }
@@ -1748,7 +1903,7 @@ function update(dt) {
     const dir = (right ? 1 : 0) - (left ? 1 : 0);
     // wind ribbon dash
     player.dashCd = Math.max(0, player.dashCd - dt);
-    if (dashPressed && upg.dash && player.dashCd <= 0 && player.dashT <= 0 && !(yarn && yarn.phase === 'pull') &&
+    if (dashPressed && !player.sled && upg.dash && player.dashCd <= 0 && player.dashT <= 0 && !(yarn && yarn.phase === 'pull') &&
         (player.grounded || player.airDash > 0)) {
       if (!player.grounded) player.airDash--;
       player.dashT = 0.16; player.dashCd = 0.8;
@@ -1990,15 +2145,80 @@ function update(dt) {
     }
   }
 
+  // ---- hidden story pages
+  for (const pg of pages) {
+    if (pg.got) continue;
+    if (Math.abs(player.x - pg.x) < 34 && Math.abs(player.y - 24 - pg.y) < 40) {
+      pg.got = true;
+      pagesFound.add(curLevel + ':' + pg.i);
+      popup(pg.x, pg.y - 20, 'Story page!');
+      sfx.heart(); rumble(0.2, 0.4, 120);
+      spawnParts(pg.x, pg.y, 'sparkle', 10, { speed: 110, life: 0.8, color: '#ffe9a0', grav: 0 });
+    }
+  }
+  // ---- cushion switches raise book bridges
+  for (const cu of cushions) {
+    cu.squish = Math.max(0, cu.squish - dt * 3);
+    if (cu.on && cu.secs) {
+      cu.timer -= dt;
+      if (cu.timer < 2.5 && Math.random() < dt * 4) {
+        spawnParts(cu.x, cu.y - 24, 'sparkle', 1, { speed: 30, life: 0.3, color: '#e8a0b0', grav: 0 });
+      }
+      if (cu.timer <= 0) { cu.on = false; blip(420, 220, 0.2, 'triangle', 0.05); }
+    }
+    if (!cu.on && player.grounded && player.vy >= 0 && player.pBot <= cu.y - 8 &&
+        Math.abs(player.x - cu.x) < 30 && Math.abs(player.y - cu.y) < 14) {
+      cu.on = true; cu.squish = 1;
+      if (cu.secs) cu.timer = cu.secs;
+      popup(cu.x, cu.y - 50, cu.secs ? 'Quick! ' + cu.secs + 's!' : 'Click!');
+      sfx.check(); rumble(0.3, 0.5, 140);
+      spawnParts(cu.x, cu.y - 16, 'star', 7, { speed: 110, life: 0.6, color: '#ffd978' });
+    }
+  }
+  for (const br of bridges) {
+    const want = cushions.some(cu => cu.on && cu.bridgeId === br.id);
+    br.on = want;
+    br.fade += ((want ? 1 : 0) - br.fade) * Math.min(1, dt * 5);
+  }
+  // ---- toboggan ride
+  if (sledZone) {
+    if (!player.sled && player.grounded && player.x > sledZone.x0 && player.x < sledZone.x1 - 200) {
+      player.sled = true;
+      popup(player.x, player.y - 90, 'Toboggan time!');
+      blip(300, 700, 0.25, 'triangle', 0.06); rumble(0.3, 0.6, 200);
+    }
+    if (player.sled) {
+      player.vx = 340;
+      player.face = 1;
+      if (player.grounded && Math.random() < dt * 30) {
+        spawnParts(player.x - 18, player.y - 2, 'puff', 1, { speed: 60, life: 0.4, color: '#eef4f8' });
+      }
+      if (player.x > sledZone.x1) {
+        player.sled = false;
+        popup(player.x, player.y - 80, 'Wheee!');
+        spawnParts(player.x, player.y, 'puff', 8, { speed: 80, life: 0.5, color: '#eef4f8' });
+      }
+    }
+  }
+  // ---- built-in hero powers (V)
+  for (let pi = 0; pi < 3; pi++) powerCds[pi] = Math.max(0, powerCds[pi] - dt);
+  if (pressed.has('KeyV')) tryPower();
+  if (power) updatePower(dt);
+
+  // ---- the big sleepy gate-guardian
+  if (boss && !boss.done) updateBoss(dt);
+  else if (boss && boss.done) { boss.t += dt; if (Math.random() < dt * 0.5) spawnParts(boss.x + boss.dir * 20, boss.y - 80, 'zz', 1, { speed: 12, life: 1.6, grav: -30 }); }
+  gateMsgT = Math.max(0, gateMsgT - dt);
+
   // ---- yarn zinger
   yarnCd = Math.max(0, yarnCd - dt);
   if (yarn) updateYarn(dt);
-  if (pressed.has('KeyG') && upg.yarn && !frozen && !yarn) fireYarn();
+  if (pressed.has('KeyG') && upg.yarn && !frozen && !yarn && !player.sled) fireYarn();
 
   // ---- lucky baseball
   if (aiming && upg.ball && !frozen) player.face = (aimPt.x + camX >= player.x) ? 1 : -1;
   ballCd = Math.max(0, ballCd - dt);
-  if ((pressed.has('KeyF') || pressed.has('KeyV')) && upg.ball && ballCd <= 0 && !frozen) {
+  if (pressed.has('KeyF') && upg.ball && ballCd <= 0 && !frozen) {
     ballCd = 0.45;
     balls.push({
       x: player.x + player.face * 14, y: player.y - 34,
@@ -2111,7 +2331,16 @@ function update(dt) {
   for (const en of enemies) {
     if (en.gone) { en.poof += dt; continue; }
     if (en.x < camX - 640 || en.x > camX + VW + 640) continue; // sleep far offscreen
-    if (en.type === 'rhino') updateRhino(en, dt);
+    if (en.stunT > 0) { // seeing stars — harmless until it wears off
+      en.stunT -= dt;
+      if (en.type === 'tiger' || en.type === 'rawr') {
+        en.vx = 0; en.vy = Math.min(900, (en.vy || 0) + 1900 * dt); physics(en, dt);
+      }
+      if (Math.random() < dt * 7) {
+        spawnParts(en.x, en.y - (en.type === 'bird' ? 44 : 58), 'star', 1, { speed: 36, life: 0.6, color: '#ffd978' });
+      }
+    }
+    else if (en.type === 'rhino') updateRhino(en, dt);
     else if (en.type === 'tiger') updateTiger(en, dt);
     else if (en.type === 'rawr') updateRawr(en, dt);
     else updateBird(en, dt);
@@ -2126,7 +2355,7 @@ function update(dt) {
       if (fromAbove && player.vy > -60) {
         poofEnemy(en);
         player.vy = -480; player.squash = -0.3;
-      } else if (player.y > top2 + 14) {
+      } else if (player.y > top2 + 14 && !(en.stunT > 0)) {
         hurtPlayer(false, Math.sign(player.x - en.x) || -player.face);
       } // grazing the very top of their head: no harm done
     }
@@ -2143,10 +2372,14 @@ function update(dt) {
     if (player.y > surfNow + 42) hurtPlayer(true, 0);
   }
 
-  // ---- win condition: reach the cottage door
+  // ---- win condition: reach the gate (unless the big one still guards it)
   if (GOAL && player.x + 15 > GOAL.x && player.x - 15 < GOAL.x + GOAL.w &&
       player.y > GOAL.y && player.y - player.h < GOAL.y + GOAL.h) {
-    winGame();
+    if (boss && !boss.done) {
+      if (gateMsgT <= 0) { popup(player.x, player.y - 86, 'The big sleepy one guards the gate!'); gateMsgT = 2.5; }
+    } else {
+      winGame();
+    }
   }
 
   // ---- camera
@@ -2184,8 +2417,17 @@ function hurtPlayer(respawn, knockDir) {
   }
 }
 
+function pagesInLevel() {
+  let n = 0;
+  for (let i = 0; i < 3; i++) if (pagesFound.has(curLevel + ':' + i)) n++;
+  return n;
+}
 function winGame() {
   if (state !== 'play') return;
+  if (SPEC.page.length && pagesInLevel() >= 3) {
+    buttons += 15; buttonsCollected += 15;
+    popup(player.x, player.y - 100, 'All pages! +15 buttons');
+  }
   sfxWin();
   if (curLevel < LEVELS.length - 1) {
     state = 'chapter'; chapterT = 0;
@@ -2263,6 +2505,165 @@ function updateTiger(en, dt) {
     en.gone = true; en.poof = 1;
     sfx.splash();
     spawnParts(en.x, WORLD_H - 64, 'splash', 8, { speed: 130, life: 0.6, color: THEME.waterDeep });
+  }
+}
+
+function updateBoss(dt) {
+  const b = boss;
+  b.t += dt;
+  b.hurtT = Math.max(0, b.hurtT - dt);
+  b.vy = Math.min(900, b.vy + 1900 * dt);
+  physics(b, dt);
+  if (!b.grounded) b.flew = true;
+  const dx = player.x - b.x;
+  if (b.state === 'sleep') {
+    b.vx = 0;
+    if (Math.random() < dt * 0.8) spawnParts(b.x + b.dir * 24, b.y - 86, 'zz', 1, { speed: 12, life: 1.6, grav: -30 });
+    if (Math.abs(dx) < 330 && Math.abs(player.y - b.y) < 220 && player.invuln <= 0) {
+      b.state = 'roar'; b.stateT = 1.0;
+      popup(b.x, b.y - 120, 'RAAAWR!');
+      blip(70, 160, 0.7, 'sawtooth', 0.09);
+      rumble(0.9, 0.6, 450);
+    }
+  } else if (b.state === 'roar') {
+    b.vx = 0;
+    b.stateT -= dt;
+    b.dir = dx >= 0 ? 1 : -1;
+    if (b.stateT <= 0) { b.state = 'pounce'; b.pLeft = b.pounces; b.flew = false; b.vy = -640; b.vx = clamp(dx * 1.4, -340, 340) * b.spd; }
+  } else if (b.state === 'pounce') {
+    if (b.grounded && b.flew) {
+      spawnParts(b.x, b.y, 'puff', 12, { speed: 130, life: 0.6, color: '#cdb59a' });
+      rumble(0.7, 0.4, 220);
+      blip(90, 50, 0.3, 'sawtooth', 0.08);
+      b.pLeft--;
+      b.vx = 0;
+      if (b.pLeft > 0) { b.state = 'crouch'; b.stateT = 0.45; }
+      else { b.state = 'tired'; b.stateT = 3.4; popup(b.x, b.y - 116, 'so… sleepy…'); }
+    }
+  } else if (b.state === 'crouch') {
+    b.vx = 0;
+    b.stateT -= dt;
+    b.dir = dx >= 0 ? 1 : -1;
+    if (b.stateT <= 0) { b.flew = false; b.vy = -640; b.vx = clamp((player.x - b.x) * 1.4, -340, 340) * b.spd; b.state = 'pounce'; }
+  } else if (b.state === 'tired') {
+    b.vx = 0;
+    b.stateT -= dt;
+    if (b.stateT <= 0) { b.state = 'roar'; b.stateT = 0.8; }
+  }
+  // squish on the noggin while tired
+  const top = b.y - b.h;
+  if (Math.abs(player.x - b.x) < 62 && player.y > top && player.y - player.h < b.y) {
+    const fromAbove = player.pBot <= top + 14 || (player.vy > 0 && player.y - top < 34);
+    if (fromAbove) {
+      player.vy = -560; player.squash = -0.35;
+      if (b.state === 'tired' && b.hurtT <= 0) {
+        b.hpLeft--; b.hurtT = 0.5;
+        sfx.stomp(); rumble(0.5, 0.8, 250);
+        spawnParts(b.x, top, 'star', 10, { speed: 150, life: 0.7, color: '#ffd978' });
+        if (b.hpLeft <= 0) {
+          b.done = true; b.state = 'friend';
+          popup(b.x, b.y - 130, 'New friend! ♥');
+          sfxWin();
+          spawnParts(b.x, b.y - 70, 'heart', 16, { speed: 160, life: 1.4, size: 7, grav: -40 });
+        } else {
+          popup(b.x, b.y - 124, b.hpLeft + ' more boop' + (b.hpLeft > 1 ? 's' : '') + '!');
+        }
+      } else if (b.state !== 'tired') {
+        blip(500, 700, 0.1, 'sine', 0.04); // boing — he's too tough right now
+      }
+    } else if (b.state !== 'tired' && player.invuln <= 0) {
+      hurtPlayer(false, Math.sign(player.x - b.x) || 1);
+    }
+  }
+}
+
+function tryPower() {
+  if (state !== 'play' || player.sled || power || special) return;
+  if (powerCds[heroIdx] > 0) {
+    popup(player.x, player.y - 92, 'magic recharging\u2026 ' + Math.ceil(powerCds[heroIdx]) + 's');
+    blip(260, 200, 0.12, 'sine', 0.035);
+    return;
+  }
+  const seen = enemies.filter(en => !en.gone && en.x > camX - 30 && en.x < camX + VW + 30);
+  if (heroIdx === 0) { // Doggie — Collar Comet
+    if (!seen.length) { popup(player.x, player.y - 92, 'no rascals in sight!'); return; }
+    powerCds[0] = POWER_CD;
+    power = { kind: 'collar', t: 0, x: player.x + player.face * 14, y: player.y - 38, spin: 0, targets: seen };
+    collarOff = true;
+    popup(player.x, player.y - 102, 'Collar Comet!');
+    blip(620, 1240, 0.3, 'triangle', 0.06); rumble(0.3, 0.5, 160);
+  } else if (heroIdx === 1) { // Bear — Big Bear Roar
+    if (!seen.length) { popup(player.x, player.y - 92, 'no one to scare!'); return; }
+    powerCds[1] = POWER_CD;
+    power = { kind: 'roar', t: 0, roared: false };
+    blip(90, 55, 0.55, 'sawtooth', 0.07);
+  } else { // Dearie — Wild Charge
+    powerCds[2] = POWER_CD;
+    power = { kind: 'charge', t: 0, dir: player.face, kills: 0 };
+    popup(player.x, player.y - 102, 'Wild Charge!');
+    blip(180, 320, 0.2, 'square', 0.05); rumble(0.4, 0.6, 220);
+  }
+}
+
+function updatePower(dt) {
+  power.t += dt;
+  if (power.kind === 'collar') {
+    power.spin += dt * 16;
+    if (Math.random() < dt * 36) spawnParts(power.x, power.y, 'star', 1, { speed: 26, life: 0.4, color: '#ffd978' });
+    const live = power.targets.filter(en => !en.gone);
+    let tx2, ty2, home = false;
+    if (live.length) {
+      let cur = live[0], best = Infinity;
+      for (const en of live) {
+        const d2 = (en.x - power.x) * (en.x - power.x) + (en.y - 24 - power.y) * (en.y - 24 - power.y);
+        if (d2 < best) { best = d2; cur = en; }
+      }
+      tx2 = cur.x; ty2 = cur.y - 24; power.cur = cur;
+    } else {
+      tx2 = player.x; ty2 = player.y - 38; home = true;
+    }
+    const dx = tx2 - power.x, dy = ty2 - power.y, d = Math.hypot(dx, dy) || 1;
+    const sp = 1350;
+    if (d < Math.max(30, sp * dt)) {
+      if (home) {
+        power = null; collarOff = false;
+        blip(880, 1320, 0.18, 'triangle', 0.05);
+      } else {
+        poofEnemy(power.cur);
+        blip(560 + live.length * 80, 940, 0.12, 'triangle', 0.05);
+      }
+    } else {
+      power.x += dx / d * sp * dt; power.y += dy / d * sp * dt;
+    }
+  } else if (power.kind === 'roar') {
+    if (!power.roared && power.t >= 0.5) {
+      power.roared = true;
+      popup(player.x, player.y - 134, 'RAAAWR!');
+      rumble(0.8, 1, 420);
+      blip(70, 42, 0.8, 'sawtooth', 0.09);
+      for (const en of enemies) {
+        if (!en.gone && en.x > camX - 30 && en.x < camX + VW + 30) {
+          en.stunT = 6;
+          spawnParts(en.x, en.y - 50, 'star', 4, { speed: 70, life: 0.7, color: '#ffd978' });
+        }
+      }
+    }
+    if (power.t >= 1.6) power = null;
+  } else if (power.kind === 'charge') {
+    player.face = power.dir;
+    player.vx = power.dir * 640;
+    player.invuln = Math.max(player.invuln, 0.12);
+    if (Math.random() < dt * 30) {
+      spawnParts(player.x - power.dir * 16, player.y - 4, 'puff', 1, { speed: 50, life: 0.35, color: '#cbb89b' });
+    }
+    for (const en of enemies) {
+      if (en.gone || power.kills >= 2) continue;
+      if (Math.abs(en.x - player.x) < 46 && Math.abs(en.y - player.y) < 70) {
+        poofEnemy(en); power.kills++;
+        rumble(0.5, 0.8, 140);
+      }
+    }
+    if (power.t >= 0.85 || power.kills >= 2) power = null;
   }
 }
 
@@ -2491,16 +2892,18 @@ function drawDoggie(x, y, o) {
   const armY = -40;
   limb(-11, armY, -11 + Math.cos(aF) * 15, armY + Math.sin(aF) * 15, 8, C.body, C.light, 5);
   limb(11, armY, 11 + Math.cos(aA) * 15, armY + Math.sin(aA) * 15, 8, C.body, C.light, 5);
-  // scarf — red & white stripes with a little hanging tail
-  ctx.save();
-  ctx.translate(10, -39); ctx.rotate(0.3 + Math.sin(t * 2.1) * 0.06);
-  ctx.fillStyle = '#d23b2f'; RR(-3.5, 0, 8, 15, 3); ctx.fill();
-  ctx.fillStyle = '#f3ece1'; ctx.fillRect(-3.5, 3.5, 8, 3.2); ctx.fillRect(-3.5, 10, 8, 3.2);
-  ctx.strokeStyle = 'rgba(86,50,40,.4)'; ctx.lineWidth = 1.4; RR(-3.5, 0, 8, 15, 3); ctx.stroke();
-  ctx.restore();
-  for (let i = 0; i < 9; i++) {
-    const a = Math.PI * (0.08 + 0.84 * i / 8);
-    E(4 + Math.cos(a) * 11, -44 + Math.sin(a) * 4.5, 3.3, 3.3, i % 2 ? '#f3ece1' : '#d23b2f');
+  // scarf — red & white stripes with a little hanging tail (hidden mid Collar Comet)
+  if (!collarOff) {
+    ctx.save();
+    ctx.translate(10, -39); ctx.rotate(0.3 + Math.sin(t * 2.1) * 0.06);
+    ctx.fillStyle = '#d23b2f'; RR(-3.5, 0, 8, 15, 3); ctx.fill();
+    ctx.fillStyle = '#f3ece1'; ctx.fillRect(-3.5, 3.5, 8, 3.2); ctx.fillRect(-3.5, 10, 8, 3.2);
+    ctx.strokeStyle = 'rgba(86,50,40,.4)'; ctx.lineWidth = 1.4; RR(-3.5, 0, 8, 15, 3); ctx.stroke();
+    ctx.restore();
+    for (let i = 0; i < 9; i++) {
+      const a = Math.PI * (0.08 + 0.84 * i / 8);
+      E(4 + Math.cos(a) * 11, -44 + Math.sin(a) * 4.5, 3.3, 3.3, i % 2 ? '#f3ece1' : '#d23b2f');
+    }
   }
   // head — long floppy hound ears draping past the chin, muzzle out front
   const earSwing = clamp(vy / 1500, -0.5, 0.5);
@@ -3383,6 +3786,45 @@ function makeBands() {
         wrap(x, xx => decoBush(p, xx, yAt(x) + 6, 0.8 + hash(i * 5) * 0.7, shade(THEME.hillMid, 0.84)));
       }
     }, [432, VH, 0.1]);
+  } else if (style === 'shelf') {
+    const decoShelfSil = (p, x, y, s, frameCol) => {
+      p.save(); p.translate(x, y); p.scale(s, s);
+      p.fillStyle = frameCol;
+      p.fillRect(-36, -108, 72, 108);
+      const spineCols = ['#a8624a', '#7a8a5a', '#b89a4e', '#6a7a9a', '#9a6a86'];
+      for (let r2 = 0; r2 < 3; r2++) {
+        const sy2 = -100 + r2 * 34;
+        p.fillStyle = 'rgba(36,24,14,.4)';
+        p.fillRect(-32, sy2, 64, 28);
+        for (let b2 = 0; b2 < 7; b2++) {
+          p.fillStyle = spineCols[(b2 + r2) % spineCols.length];
+          p.globalAlpha = 0.85;
+          p.fillRect(-30 + b2 * 8.6, sy2 + 3 + hash(b2 * 3 + r2 + x) * 4, 6 + hash(x + r2 * 7 + b2) * 3, 24 - hash(b2 + r2) * 5);
+          p.globalAlpha = 1;
+        }
+        p.fillStyle = frameCol;
+        p.fillRect(-36, sy2 + 28, 72, 6);
+      }
+      p.restore();
+    };
+    build(0.15, 330, [[2, 8, 0]], shade(THEME.hillFar, 1.06), (p, yAt, W, wrap) => {
+      for (let i = 0; i < 5; i++) {
+        const x = (i + 0.5) * W / 5;
+        wrap(x, xx => decoShelfSil(p, xx, yAt(x) + 6, 1.6, shade(THEME.hillFar, 0.85)));
+      }
+    }, [312, 430, 0.4]);
+    build(0.35, 380, [[3, 10, 1]], THEME.hillFar2, (p, yAt, W, wrap) => {
+      for (let i = 0; i < 7; i++) {
+        const x = (i + 0.5) * W / 7 + hash(i) * 30;
+        wrap(x, xx => decoShelfSil(p, xx, yAt(x) + 5, 1.1, shade(THEME.hillFar2, 0.8)));
+      }
+    }, [368, 500, 0.26]);
+    build(0.6, 430, [[4, 12, 2]], THEME.hillMid, (p, yAt, W, wrap) => {
+      for (let i = 0; i < 9; i++) {
+        const x = (i + 0.5) * W / 9 + hash(i * 3) * 24;
+        wrap(x, xx => decoShelfSil(p, xx, yAt(x) + 6, 0.8, shade(THEME.hillMid, 0.78)));
+      }
+    }, [420, VH, 0.16]);
   } else if (style === 'ember') {
     build(0.12, 312, [[2, 18, 0], [5, 9, 1]], shade(THEME.hillFar, 1.12), (p, yAt, W, wrap) => {
       for (let i = 0; i < 5; i++) {
@@ -3490,7 +3932,7 @@ function drawSky() {
     });
     ctx.fillRect(cc[0] - 430, cc[1] - 430, 860, 860);
   });
-  const rise = (WORLD_H - VH) - camY;
+  const rise = Math.min(420, (WORLD_H - VH) - camY);
   const sx = 150 - camX * 0.02, sy = 92 + rise * 0.04;
   if (THEME.orb === 'moon') {
     for (let i = 0; i < 14; i++) { // twinkling stars
@@ -3577,7 +4019,7 @@ function hazeBand(y0, y1, a) {
 }
 function lightRays() {
   if (!THEME.rays) return;
-  const sx = 150 - camX * 0.02, sy = 92 + ((WORLD_H - VH) - camY) * 0.04;
+  const sx = 150 - camX * 0.02, sy = 92 + Math.min(420, (WORLD_H - VH) - camY) * 0.04;
   for (let i = 0; i < 3; i++) {
     const rot = 0.5 + i * 0.34 + Math.sin(simT * 0.25 + i * 2.1) * 0.05;
     ctx.save();
@@ -3597,7 +4039,7 @@ function lightRays() {
   }
 }
 function drawHills() {
-  const rise = (WORLD_H - VH) - camY; // how far the camera has climbed above ground view
+  const rise = Math.min(420, (WORLD_H - VH) - camY); // capped so tall levels keep their hills
   for (const b of bands) {
     const W2 = b.c.width;
     let off = -((camX * b.par) % W2);
@@ -3944,6 +4386,24 @@ function drawBooks() {
     }
     ctx.restore();
   });
+  // cushion-raised book bridges
+  bridges.forEach((br, i) => {
+    if (br.fade < 0.05) return;
+    if (br.x + br.w < camX - 40 || br.x > camX + VW + 40) return;
+    ctx.save();
+    ctx.globalAlpha = br.fade;
+    ctx.translate(0, (1 - br.fade) * 14);
+    platShape(br, i + 120);
+    if (br.fade < 0.95) {
+      ctx.globalAlpha = br.fade * 0.8;
+      for (let s2 = 0; s2 < 3; s2++) {
+        ctx.fillStyle = '#ffe9a0';
+        starPath(br.x + br.w * (0.2 + s2 * 0.3), br.y - 6 - Math.sin(simT * 5 + s2) * 4, 3.4);
+        ctx.fill();
+      }
+    }
+    ctx.restore();
+  });
   // pulse platforms — glow shelves that blink to a beat
   pulses.forEach((pu, i) => {
     if (pu.x + pu.w < camX - 40 || pu.x > camX + VW + 40) return;
@@ -4242,6 +4702,33 @@ function drawTreesAndFences() {
       });
       E(-14, -52, 2, 2, 'rgba(245,235,255,' + 0.8 * pulse + ')');
       E(16, -54, 1.7, 1.7, 'rgba(245,235,255,' + 0.7 * pulse + ')');
+    } else if (THEME.tree === 'bookstack') {
+      const n = 5 + Math.floor(hash(tr.x) * 3);
+      let yy = 0;
+      for (let k = 0; k < n; k++) {
+        const bw2 = 54 - k * 5 + hash(tr.x + k) * 8;
+        const bh2 = 13 + hash(tr.x * 3 + k) * 4;
+        yy -= bh2;
+        ctx.save();
+        ctx.translate(0, yy + bh2 / 2);
+        ctx.rotate((hash(tr.x * 7 + k) - 0.5) * 0.12);
+        ctx.fillStyle = PAL.bookCols[(k + Math.floor(hash(tr.x) * 5)) % PAL.bookCols.length];
+        RR(-bw2 / 2, -bh2 / 2, bw2, bh2, 4); ctx.fill();
+        ctx.strokeStyle = 'rgba(60,40,25,.4)'; ctx.lineWidth = 1.6;
+        RR(-bw2 / 2, -bh2 / 2, bw2, bh2, 4); ctx.stroke();
+        ctx.fillStyle = 'rgba(255,250,235,.85)';
+        RR(-bw2 / 2 + 3, -bh2 / 2 + 2.5, bw2 - 6, 3.5, 1.5); ctx.fill();
+        ctx.restore();
+      }
+      // a flickering candle on top
+      ctx.save();
+      ctx.globalAlpha = 0.45 + Math.sin(simT * 6 + tr.x) * 0.2;
+      E(0, yy - 18, 12, 14, 'rgba(255,210,120,.45)');
+      ctx.restore();
+      ctx.fillStyle = '#f2e8d2'; RR(-4, yy - 15, 8, 15, 2.5); ctx.fill();
+      ctx.strokeStyle = 'rgba(120,90,60,.4)'; ctx.lineWidth = 1.2; RR(-4, yy - 15, 8, 15, 2.5); ctx.stroke();
+      E(0, yy - 18, 3, 4.5, '#ffba4a');
+      E(0, yy - 19.5, 1.4, 2, '#fff3c8');
     } else if (THEME.tree === 'dead') {
       // bare gnarled tree with a last ember leaf
       ctx.strokeStyle = '#4a3430'; ctx.lineCap = 'round';
@@ -4550,6 +5037,113 @@ function drawLeaves() {
       ctx.restore();
     }
   });
+}
+
+function drawPages() {
+  pages.forEach(pg => {
+    if (pg.got) return;
+    if (pg.x < camX - 60 || pg.x > camX + VW + 60) return;
+    const wob = Math.sin(simT * 2.2 + pg.i * 2) * 5;
+    ctx.save();
+    ctx.translate(pg.x, pg.y + wob);
+    ctx.rotate(Math.sin(simT * 1.4 + pg.i) * 0.12);
+    ctx.globalAlpha = 0.45;
+    E(0, 0, 22, 26, '#ffe9a0');
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#fdf4dc';
+    RR(-12, -16, 24, 32, 3); ctx.fill();
+    ctx.strokeStyle = 'rgba(120,90,60,.55)'; ctx.lineWidth = 1.6;
+    RR(-12, -16, 24, 32, 3); ctx.stroke();
+    ctx.strokeStyle = 'rgba(120,90,60,.45)'; ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    for (let k = 0; k < 4; k++) {
+      ctx.moveTo(-7, -9 + k * 6); ctx.lineTo(7 - (k === 3 ? 5 : 0), -9 + k * 6);
+    }
+    ctx.stroke();
+    ctx.fillStyle = '#d23b2f'; heartPath(5, 10, 3); ctx.fill();
+    ctx.restore();
+    if (Math.random() < 0.04) {
+      spawnParts(pg.x + (Math.random() - 0.5) * 24, pg.y + wob, 'sparkle', 1, { speed: 12, life: 0.5, color: '#ffe9a0', grav: -8 });
+    }
+  });
+}
+
+function drawCushions() {
+  cushions.forEach(cu => {
+    if (cu.x < camX - 80 || cu.x > camX + VW + 80) return;
+    const sqz = cu.on ? 0.45 : cu.squish * 0.3;
+    ctx.save();
+    ctx.translate(cu.x, cu.y);
+    // post base
+    ctx.fillStyle = '#8a6242'; RR(-20, -8, 40, 8, 3); ctx.fill();
+    ctx.strokeStyle = 'rgba(60,38,22,.4)'; ctx.lineWidth = 1.6; RR(-20, -8, 40, 8, 3); ctx.stroke();
+    // the big plush button-cushion
+    ctx.translate(0, -8);
+    ctx.scale(1 + sqz * 0.35, 1 - sqz);
+    ctx.fillStyle = cu.on ? '#f3c93c' : '#e8a83f';
+    RR(-22, -20, 44, 20, 10); ctx.fill();
+    ctx.strokeStyle = 'rgba(120,80,20,.5)'; ctx.lineWidth = 2; RR(-22, -20, 44, 20, 10); ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,250,230,.65)'; ctx.lineWidth = 1.5; ctx.setLineDash([3, 3]);
+    RR(-17, -16, 34, 13, 7); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(120,80,20,.6)'; starPath(0, -10, 6); ctx.fill();
+    ctx.restore();
+    if (cu.on && cu.secs) {
+      text(Math.ceil(cu.timer) + '', cu.x, cu.y - 44, 16, '#9a6fb8', 'center', 'bold');
+    }
+  });
+}
+
+function drawBoss() {
+  if (!boss) return;
+  const b = boss;
+  if (b.x < camX - 240 || b.x > camX + VW + 240) return;
+  drawShadow(b.x, b.y, 56);
+  const rawrState = b.done ? 'sleep' : b.state === 'roar' ? 'wake' : b.state === 'pounce' ? 'pounce' :
+    b.state === 'crouch' ? 'wake' : b.state === 'tired' ? 'settle' : 'sleep';
+  ctx.save();
+  if (b.hurtT > 0.3) ctx.translate(Math.sin(simT * 70) * 2.5, 0);
+  drawRawr({ x: b.x, y: b.y, dir: b.dir, t: b.t, state: rawrState, scale: 2.1 });
+  ctx.restore();
+  if (b.state === 'tired' && !b.done) { // dizzy stars + "boop me" hint
+    for (let i = 0; i < 3; i++) {
+      const a = simT * 3 + i * (TAU / 3);
+      ctx.save(); ctx.globalAlpha = 0.85;
+      ctx.fillStyle = '#ffd978';
+      starPath(b.x + b.dir * 44 + Math.cos(a) * 26, b.y - 118 + Math.sin(a) * 9, 6);
+      ctx.fill(); ctx.restore();
+    }
+    text('boop the noggin!', b.x, b.y - 150, 14, '#9a6fb8', 'center', 'italic', 0.6 + Math.sin(simT * 4) * 0.3);
+  }
+  if (!b.done) { // heart pips
+    for (let i = 0; i < b.hp; i++) {
+      ctx.save();
+      ctx.globalAlpha = i < b.hpLeft ? 0.95 : 0.25;
+      ctx.fillStyle = '#e2574c';
+      heartPath(b.x - (b.hp - 1) * 11 + i * 22, b.y - 136, 8);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+}
+
+function drawSled() {
+  if (!player.sled) return;
+  ctx.save();
+  ctx.translate(player.x, player.y + 2);
+  ctx.scale(player.face, 1);
+  ctx.fillStyle = '#a8744a';
+  ctx.beginPath();
+  ctx.moveTo(-26, -2);
+  ctx.lineTo(20, -2);
+  ctx.quadraticCurveTo(30, -3, 32, -12);
+  ctx.quadraticCurveTo(26, -6, 18, -6);
+  ctx.lineTo(-26, -6);
+  ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = 'rgba(60,38,22,.5)'; ctx.lineWidth = 1.6;
+  ctx.beginPath(); ctx.moveTo(-26, -2); ctx.lineTo(20, -2); ctx.quadraticCurveTo(30, -3, 32, -12); ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,240,220,.5)'; ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.moveTo(-22, -4); ctx.lineTo(16, -4); ctx.stroke();
+  ctx.restore();
 }
 
 function drawShops() {
@@ -4875,12 +5469,82 @@ function drawBalls() {
   });
 }
 function drawPlayer() {
+  if (power && power.kind === 'charge') { drawChargeDeer(); return; }
   if (player.invuln > 0 && Math.floor(player.invuln * 9) % 2 === 0 && state === 'play') return;
-  drawShadow(player.x, player.y, 19);
+  const roarS = power && power.kind === 'roar'
+    ? 1 + 0.85 * Math.max(0, Math.min(1, power.t / 0.35, (1.6 - power.t) / 0.3))
+    : 1;
+  drawShadow(player.x, player.y, 19 * roarS);
   const sq = special && special.phase === 'spring' ? special.sq : player.squash;
   CHAR_DRAW[CHARS[heroIdx]](player.x, player.y + (player.sandT || 0) * 9, {
-    face: player.face, run: player.run, grounded: player.grounded, vy: player.vy, squash: sq, t: simT
+    face: player.face, run: player.run, grounded: player.grounded, vy: player.vy, squash: sq, t: simT, scale: roarS
   });
+}
+
+// Dearie's Wild Charge — a true galloping deer
+function drawChargeDeer() {
+  const x = player.x, y = player.y, f = power.dir, C = PAL.deer;
+  drawShadow(x, y, 24);
+  ctx.save();
+  ctx.globalAlpha = 0.35; ctx.strokeStyle = '#fffaf0'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+  for (let i = 0; i < 3; i++) {
+    const ly = y - 16 - i * 14, lx = x - f * (28 + (i % 2) * 14);
+    ctx.beginPath(); ctx.moveTo(lx, ly); ctx.lineTo(lx - f * (26 + i * 8), ly); ctx.stroke();
+  }
+  ctx.restore();
+  ctx.save();
+  ctx.translate(x, y); ctx.scale(f, 1);
+  const ph = simT * 24;
+  limb(-15, -22, -15 + Math.sin(ph) * 11, -1 - Math.max(0, Math.sin(ph)) * 5, 7, C.body, C.light, 4.5);
+  limb(-9, -22, -9 + Math.sin(ph + 2.4) * 11, -1 - Math.max(0, Math.sin(ph + 2.4)) * 5, 7, C.body, C.light, 4.5);
+  limb(9, -24, 9 + Math.sin(ph + 1.2) * 11, -1 - Math.max(0, Math.sin(ph + 1.2)) * 5, 7, C.body, C.light, 4.5);
+  limb(15, -24, 15 + Math.sin(ph + 3.6) * 11, -1 - Math.max(0, Math.sin(ph + 3.6)) * 5, 7, C.body, C.light, 4.5);
+  EO(0, -32, 23, 12.5, C.body);
+  E(-4, -29, 14, 7.5, C.belly);
+  plushShade(0, -32, 23, 12.5);
+  E(-22, -38, 4.5, 4, C.light);
+  ctx.save(); ctx.translate(17, -38); ctx.rotate(-0.5); EO(0, 0, 7, 12, C.body); ctx.restore();
+  EO(25, -50, 8.5, 7, C.body);
+  E(31.5, -48.5, 5, 4, C.muzzle);
+  E(34.5, -49, 2.2, 2, C.nose);
+  E(24, -52.5, 1.9, 2.4, '#2a201a');
+  E(20, -57, 3, 5.5, C.body, -0.5); E(26.5, -58, 3, 5.5, C.inner, 0.3);
+  ctx.strokeStyle = C.antler; ctx.lineWidth = 3; ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(21, -56); ctx.quadraticCurveTo(17, -68, 10, -73);
+  ctx.moveTo(19, -64); ctx.lineTo(13, -63);
+  ctx.moveTo(27, -57); ctx.quadraticCurveTo(26, -70, 32, -77);
+  ctx.moveTo(27.5, -66); ctx.lineTo(33, -64);
+  ctx.stroke();
+  for (let i = 0; i < 5; i++) E(8 + i * 3.2, -44 + (i % 2) * 2.6, 2.2, 2.2, i % 2 ? '#d9483f' : '#7fae62');
+  ctx.restore();
+}
+
+// the collar comet in flight + the roar shockwave
+function drawPower() {
+  if (!power) return;
+  if (power.kind === 'collar') {
+    ctx.save();
+    ctx.globalAlpha = 0.3; E(power.x, power.y, 19, 19, '#ffd978');
+    ctx.globalAlpha = 1;
+    ctx.translate(power.x, power.y); ctx.rotate(power.spin);
+    for (let i = 0; i < 10; i++) {
+      const a = TAU * i / 10;
+      E(Math.cos(a) * 12.5, Math.sin(a) * 12.5, 3.4, 3.4, i % 2 ? '#f3ece1' : '#d23b2f');
+    }
+    ctx.restore();
+  } else if (power.kind === 'roar' && power.roared) {
+    const k = (power.t - 0.5) / 1.1;
+    ctx.save();
+    for (let i = 0; i < 2; i++) {
+      const kk = k - i * 0.16;
+      if (kk <= 0 || kk >= 1) continue;
+      ctx.globalAlpha = 0.5 * (1 - kk);
+      ctx.strokeStyle = '#ffd978'; ctx.lineWidth = 5 - kk * 3;
+      ctx.beginPath(); ctx.arc(player.x, player.y - 44, 30 + kk * 560, 0, TAU); ctx.stroke();
+    }
+    ctx.restore();
+  }
 }
 
 // ============================================================ HUD & overlays
@@ -4912,8 +5576,31 @@ function drawHUD() {
     }
     ctx.restore();
   }
-  // button pouch — parchment chip
-  chip(VW - 172, 16, 154, 46);
+  // hero power charm — a gold star that refills over 60s
+  {
+    const pcd = powerCds[heroIdx];
+    const px2 = 44 + upg.maxHearts * 40 + 14;
+    ctx.save();
+    E(px2 + 1.5, 43, 15.5, 15.5, 'rgba(60,38,20,.22)');
+    E(px2, 40, 15.5, 15.5, pcd > 0 ? '#efe2c6' : '#ffd978');
+    if (pcd > 0) {
+      ctx.fillStyle = '#ffe08a';
+      ctx.beginPath(); ctx.moveTo(px2, 40);
+      ctx.arc(px2, 40, 15.5, -Math.PI / 2, -Math.PI / 2 + TAU * (1 - pcd / POWER_CD));
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.strokeStyle = 'rgba(93,68,52,.55)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(px2, 40, 15.5, 0, TAU); ctx.stroke();
+    if (pcd > 0) {
+      text(String(Math.ceil(pcd)), px2, 41, 12, '#6b4a32', 'center');
+    } else {
+      ctx.fillStyle = '#8a5a30'; starPath(px2, 40, 8); ctx.fill();
+      if (!touchUI) text('V', px2, 67, 11, 'rgba(93,68,52,.7)', 'center');
+    }
+    ctx.restore();
+  }
+  // button pouch + story pages — parchment chip
+  chip(VW - 172, 16, 154, 66);
   ctx.save();
   ctx.translate(VW - 142, 39);
   E(1, 1.8, 13.5, 13.5, 'rgba(95,60,20,.18)');
@@ -4928,6 +5615,13 @@ function drawHUD() {
   [[-3.5, -3], [3.5, -3], [-3.5, 3.5], [3.5, 3.5]].forEach(o => E(o[0], o[1], 1.8, 1.8, '#9a6d1d'));
   ctx.restore();
   text(String(buttons), VW - 120, 40, 27, PAL.ink, 'left', 'bold');
+  // pages row
+  ctx.save(); ctx.translate(VW - 142, 64);
+  ctx.fillStyle = '#fdf4dc'; RR(-6, -8, 12, 16, 2); ctx.fill();
+  ctx.strokeStyle = 'rgba(120,90,60,.55)'; ctx.lineWidth = 1.2; RR(-6, -8, 12, 16, 2); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-3, -3); ctx.lineTo(3, -3); ctx.moveTo(-3, 0); ctx.lineTo(3, 0); ctx.moveTo(-3, 3); ctx.lineTo(1, 3); ctx.stroke();
+  ctx.restore();
+  text(pagesInLevel() + ' / 3 pages', VW - 128, 64, 13.5, PAL.ink, 'left', 'italic', 0.85);
   text('— Chapter ' + (curLevel + 1) + ' of ' + LEVELS.length + ' —', VW / 2, 26, 13, PAL.ink, 'center', 'italic', 0.6);
   // stuffie stack potion bottle
   const ready = specialCd <= 0 && !special;
@@ -5000,6 +5694,7 @@ function drawTouchButtons() {
   for (const b2 of actionButtons()) {
     const held = btnHeld[b2.id] !== undefined;
     const onCd =
+      b2.id === 'power' ? (powerCds[heroIdx] > 0 || !!power) :
       b2.id === 'stack' ? (specialCd > 0 || !!special) :
       b2.id === 'ball' ? ballCd > 0 :
       b2.id === 'dash' ? player.dashCd > 0 :
@@ -5015,7 +5710,11 @@ function drawTouchButtons() {
     ctx.strokeStyle = 'rgba(93,68,52,.28)'; ctx.lineWidth = 1.5; ctx.setLineDash([5, 4]);
     ctx.beginPath(); ctx.arc(0, 0, b2.r - 7, 0, TAU); ctx.stroke();
     ctx.setLineDash([]);
-    if (b2.id === 'jump') {
+    if (b2.id === 'power') {
+      ctx.fillStyle = '#ffd978'; starPath(0, 0, 22); ctx.fill();
+      ctx.strokeStyle = 'rgba(86,60,40,.45)'; ctx.lineWidth = 2.5; starPath(0, 0, 22); ctx.stroke();
+      if (powerCds[heroIdx] > 0) text(String(Math.ceil(powerCds[heroIdx])), 0, 2, 15, '#6b4a32', 'center');
+    } else if (b2.id === 'jump') {
       ctx.fillStyle = '#74a455';
       ctx.beginPath();
       ctx.moveTo(0, -30); ctx.lineTo(23, -2); ctx.lineTo(11, -2); ctx.lineTo(11, 26);
@@ -5142,6 +5841,17 @@ function drawChapter() {
   EO(0, 0, 10, 10, '#e9b13f'); E(0, 0, 7, 7, '#f5cc6a');
   ctx.restore();
   text(buttons + ' buttons in the pouch', VW / 2 - 78, c.y + 198, 17, PAL.ink, 'left');
+  const pgN = pagesInLevel();
+  for (let i = 0; i < 3; i++) {
+    ctx.save();
+    ctx.translate(VW / 2 - 30 + i * 30, c.y + 232);
+    ctx.globalAlpha = i < pgN ? 1 : 0.3;
+    ctx.fillStyle = '#fdf4dc'; RR(-8, -11, 16, 22, 2.5); ctx.fill();
+    ctx.strokeStyle = 'rgba(120,90,60,.55)'; ctx.lineWidth = 1.4; RR(-8, -11, 16, 22, 2.5); ctx.stroke();
+    if (i < pgN) { ctx.fillStyle = '#d23b2f'; heartPath(0, 2, 3.4); ctx.fill(); }
+    ctx.restore();
+  }
+  text('story pages', VW / 2 + 78, c.y + 232, 13, PAL.ink, 'left', 'italic', 0.7);
   const blink = Math.sin(simT * 3.4) > -0.4;
   if (blink && chapterT > 0.6) text('press any key — or tap — for Chapter ' + (curLevel + 2), VW / 2, c.y + 262, 17, '#9a6fb8', 'center', 'bold');
   ctx.restore();
@@ -5173,6 +5883,7 @@ function drawWin() {
   EO(0, 0, 10, 10, '#e9b13f'); E(0, 0, 7, 7, '#f5cc6a');
   ctx.restore();
   text(buttonsCollected + ' buttons found', VW / 2 - 74, c.y + 222, 18, PAL.ink, 'left');
+  text(pagesFound.size + ' / ' + (3 * LEVELS.length) + ' story pages' + (pagesFound.size >= 3 * LEVELS.length ? ' — every one! ★' : ''), VW / 2, c.y + 248, 15, '#9a6fb8', 'center', 'italic');
   text('⏱ ' + fmtTime(timeSec), VW / 2 + 92, c.y + 222, 18, PAL.ink, 'left');
   const blink = Math.sin(simT * 3.4) > -0.4;
   if (blink) text('press R — or tap — to read it again', VW / 2, c.y + 280, 17, '#9a6fb8', 'center', 'bold');
@@ -5327,8 +6038,10 @@ function draw() {
   drawCottage();
   drawGoalBook();
   drawSignsAndPillows();
+  drawCushions();
   drawShops();
   drawItems();
+  drawPages();
   drawLeaves();
   drawRollers();
   drawApples();
@@ -5340,8 +6053,11 @@ function draw() {
     fn(en);
   });
   drawButterflies();
+  drawBoss();
   if (state === 'play' || state === 'over' || state === 'chapter' || state === 'shop') {
     drawCompanions();
+    drawSled();
+    drawPower();
     drawPlayer();
     drawBalls();
     drawYarn();
@@ -5431,7 +6147,7 @@ if (qs.get('touch')) {
   touchUI = true;
   if (qs.get('touch') === '2') { upg.ball = true; upg.dash = true; upg.yarn = true; }
 }
-if (touchUI) { SWAPBTN.x = VW - 208; SWAPBTN.y = 64; SWAPBTN.w = 190; SWAPBTN.h = 38; MUTEBTN.y = SWAPBTN.y + SWAPBTN.h + 8; }
+if (touchUI) { SWAPBTN.x = VW - 208; SWAPBTN.y = 88; SWAPBTN.w = 190; SWAPBTN.h = 38; MUTEBTN.y = SWAPBTN.y + SWAPBTN.h + 8; }
 buildLevel(curLevel);
 resetLevel();
 
@@ -5458,6 +6174,7 @@ if (poseMode === 'lineup') {
     if (qs.get('aim')) { upg.ball = true; upg.ball2 = qs.get('aim') === '2'; aiming = true; aimPt = { x: 620, y: 210 }; }
     for (let i = 0; i < secs * 60; i++) update(1 / 60);
     if (qs.get('yarn')) { upg.yarn = true; player.face = 1; fireYarn(); for (let i = 0; i < 8; i++) update(1 / 60); }
+    if (qs.get('pow')) { tryPower(); for (let i = 0; i < parseFloat(qs.get('pow')) * 60; i++) update(1 / 60); }
   } else {
     autopilot = true;
     for (let i = 0; i < secs * 60; i++) update(1 / 60);
@@ -5479,6 +6196,11 @@ if (typeof window !== 'undefined') {
       get goalX() { return GOAL.x; },
       get level() { return curLevel; },
       get shopX() { return shops.length ? shops[0].x : 0; },
+      get levels() { return LEVELS.length; },
+      tameBoss() { if (boss) { boss.done = true; boss.state = 'friend'; } },
+      get enemiesNear() { return enemies.filter(en => !en.gone && en.x > camX - 30 && en.x < camX + VW + 30).length; },
+      get anyStunned() { return enemies.some(en => !en.gone && en.stunT > 0); },
+      get powerCds() { return powerCds.slice(); },
       addButtons(n) { buttons += n; },
       setHearts(n) { hearts = n; },
       teleport(x) {

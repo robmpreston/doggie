@@ -123,12 +123,14 @@ fire('keyup', { code: 'KeyF', key: 'f' });
 pump(10);
 check(G.state === 'play', 'baseball throw does not break play');
 
-// walk every chapter gate: 1 through 9, then the cottage on 10
+// walk every chapter gate (befriending any gate-guardians), then the cottage
+const totalLv = G.debug.levels;
 let gates = true;
-for (let lv = 0; lv < 9; lv++) {
+for (let lv = 0; lv < totalLv - 1; lv++) {
   G.debug.teleport(G.debug.goalX - 160);
+  G.debug.tameBoss();
   fire('keydown', { code: 'ArrowRight' });
-  pump(320);
+  pump(340);
   if (G.state !== 'chapter') {
     check(false, 'gate completes chapter ' + (lv + 1) + ' (state: ' + G.state + ')');
     gates = false;
@@ -137,9 +139,10 @@ for (let lv = 0; lv < 9; lv++) {
   fire('keydown', { code: 'Space', key: ' ' }); pump(10);
 }
 if (gates) {
-  check(G.debug.level === 9 && G.state === 'play', 'arrived at Chapter 10');
+  check(G.debug.level === totalLv - 1 && G.state === 'play', 'arrived at the final chapter (' + totalLv + ')');
   G.debug.teleport(G.debug.goalX - 160);
-  pump(320);
+  G.debug.tameBoss();
+  pump(340);
   check(G.state === 'win', 'cottage door ends the story (state: ' + G.state + ')');
 }
 
@@ -147,6 +150,51 @@ if (gates) {
 fire('keydown', { code: 'KeyR', key: 'r' });
 pump(5);
 check(G.state === 'play' && G.debug.level === 0 && G.player.x < 400, 'R starts a fresh story from Chapter 1');
+
+// N (keyboard only) skips to the next chapter
+fire('keydown', { code: 'KeyN', key: 'n' });
+pump(5);
+check(G.state === 'play' && G.debug.level === 1, 'N skips to the next chapter');
+
+// the chapter-5 toboggan mounts when landing anywhere along the run
+fire('keydown', { code: 'KeyN', key: 'n' }); pump(3);
+fire('keydown', { code: 'KeyN', key: 'n' }); pump(3);
+fire('keydown', { code: 'KeyN', key: 'n' }); pump(3); // level index 4: The Snowy Peaks
+fire('keyup', { code: 'ArrowRight' }); pump(3); // stop running before the ride
+G.debug.teleport(6800); // mid-run, well past the crest
+pump(30);
+check(G.debug.level === 4 && G.player.sled === true, 'toboggan mounts mid-run on Snowy Peaks');
+pump(280); // ride it out (forced 340px/s covers the rest), stopping short of the gate
+check(G.player.sled === false && G.player.x > 8064 && G.state === 'play',
+  'toboggan ride completes and dismounts (x: ' + Math.round(G.player.x) + ')');
+
+// hero powers (V): Doggie's Collar Comet poofs every on-screen foe
+G.debug.setHearts(5);
+G.debug.teleport(3360); // tiger + two rhinos live on this stretch of Snowy Peaks
+pump(3);
+const foes0 = G.debug.enemiesNear;
+fire('keydown', { code: 'KeyV', key: 'v' }); fire('keyup', { code: 'KeyV', key: 'v' });
+pump(300);
+check(foes0 >= 3 && G.debug.enemiesNear === 0 && G.debug.powerCds[0] > 0,
+  'Collar Comet clears the screen (' + foes0 + ' foes -> ' + G.debug.enemiesNear + ')');
+
+// Dearie's Wild Charge: a real gallop with its own cooldown
+fire('keydown', { code: 'KeyC', key: 'c' }); pump(5);
+fire('keydown', { code: 'KeyC', key: 'c' }); pump(5); // Doggie -> Bear -> Dearie
+const cx0 = G.player.x;
+fire('keydown', { code: 'KeyV', key: 'v' }); fire('keyup', { code: 'KeyV', key: 'v' });
+pump(70);
+check(G.player.x - cx0 > 300 && G.debug.powerCds[2] > 0 && G.state === 'play',
+  'Wild Charge gallops Dearie forward (' + Math.round(G.player.x - cx0) + 'px)');
+
+// Bear's Big Bear Roar: stuns whoever is on screen
+fire('keydown', { code: 'KeyC', key: 'c' }); pump(5);
+fire('keydown', { code: 'KeyC', key: 'c' }); pump(5); // Dearie -> Doggie -> Bear
+G.debug.teleport(4032); // the bird wheels overhead here
+pump(3);
+fire('keydown', { code: 'KeyV', key: 'v' }); fire('keyup', { code: 'KeyV', key: 'v' });
+pump(70);
+check(G.debug.anyStunned && G.debug.powerCds[1] > 0, 'Big Bear Roar stuns the on-screen foes');
 
 if (failures) { console.error('\nSMOKE FAILED: ' + failures); process.exit(1); }
 console.log('\nSMOKE OK — level is playable start to finish');

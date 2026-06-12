@@ -36,13 +36,14 @@ slide your thumb — a paw pad appears under your finger to run. Big plush
 buttons sit bottom-right: the green arrow jumps (hold for higher), the
 stacked-trio button fires the Stuffie Stack, and owned upgrades add their
 own buttons (⚾ tap to throw, or drag off it to aim with a trajectory;
-» dash; yarn ball zips). Tap the chips top-right to swap hero or mute.
+» dash; yarn ball zips). The gold star is the hero power — every friend
+has their own! Tap the chips top-right to swap hero or mute.
 
 **On a gamepad** (plug in or pair — works in any browser): left stick or
 d-pad runs, **A** jumps (hold for higher), **Y** fires the Stuffie Stack,
 **B** dashes, **X** throws the baseball (straight — or hold the **right
 stick** to aim with the trajectory arc, then press X), **RB/RT** zips the
-yarn, **LB** swaps hero, **Start** pauses and advances menus, and the shop
+yarn, **LT** fires the hero power, **LB** swaps hero, **Start** pauses and advances menus, and the shop
 navigates with stick/d-pad + A to buy, B to leave. Rumble included. Note:
 browsers only unlock sound after a click/tap/keypress, so give the page one
 tap before handing over the controller.
@@ -60,18 +61,36 @@ tap before handing over the controller.
 | Yarn zinger (once bought) | `G` — poofs a foe ahead and pulls you to it |
 | Buy at the heart shop | `▼` / `S` or tap the stall |
 | Pause / Restart / Sound | `P` / `R` / `M` |
+| **Hero Power** (each friend has their own!) | `V` — recharges in 60s |
+| Skip to next chapter (keyboard only) | `N` |
 
 ## The game
 
-Ten storybook chapters, each in its own hand-painted biome:
+Eleven storybook chapters, each in its own hand-painted biome:
 
-1. **The Meadow** · 2. **The Whispering Woods** · 3. **The Golden Dunes**
-4. **Orchard Lane** (autumn) · 5. **The Snowy Peaks** (slippery!) ·
-6. **Petal Gardens** · 7. **Sandy Shores** · 8. **Glowshroom Hollow** ·
-9. **Ember Canyon** (lava!) · 10. **The Starlit Stroll** — home at last.
+1. **The Meadow** · 2. **The Whispering Woods** · 3. **The Golden Dunes** ·
+4. **Orchard Lane** · 5. **The Snowy Peaks** (toboggan!) · 6. **Petal
+Gardens** · 7. **Sandy Shores** · 8. **Glowshroom Hollow** · 9. **The Great
+Bookshelf** (climb straight UP!) · 10. **Ember Canyon** · 11. **The Starlit
+Stroll** — home at last.
+
+- **Hero Powers** (`V` / the gold-star button / LT, one per friend, 60s
+  recharge): **Doggie** flings his collar — a comet that chases down and
+  poofs *every* rascal on screen. **Bear** grows HUGE and his roar stuns
+  everyone in sight (they just see stars — walk right past, or boop them).
+  **Dearie** transforms into a true deer and charges through up to two
+  foes. Swap heroes (`C`) to bring the right power!
+- **Gate guardians**: a giant sleepy Rawr blocks the gates of chapters 3, 6
+  and 10. Dodge his pounces, then boop his noggin while he's dizzy — three
+  boops makes a friend ♥
+- **3 hidden Story Pages** per chapter (33 total) — tucked up high, behind
+  things, and past tricky jumps. Find all three in a chapter for +15
+  buttons at the gate; the ending counts your full collection.
+- **Cushion switches** raise bridges of books — some only for a few
+  seconds. Stomp the big gold buttons!
 
 - **Stuffie Stack** (`X`) — Bear and Dearie launch the hero sky-high. Big
-  cliffs need it; chapter 9 needs it twice in a row.
+  cliffs need it; Ember Canyon needs it twice in a row.
 - **The Plush Peddler** waits halfway through every chapter. Browse with
   `▼`: plush hearts (10), a bigger heart pouch up to 5 (25), zoomy
   slippers (20), cloud-bounce double jump (30), the wind-ribbon dash (25),
@@ -80,7 +99,7 @@ Ten storybook chapters, each in its own hand-painted biome:
 - Monsters get meaner every three chapters: faster charges, longer leaps,
   shorter cooldowns, lighter sleepers, tougher hides.
 - Buttons are money *and* score. Pillow checkpoints save your spot; the
-  storybook gates turn the page; reach the cottage door in chapter 10:
+  storybook gates turn the page; reach the cottage door in chapter 11:
   *"...snug, sleepy, and together. The End ♥"*
 
 ## Dev notes
